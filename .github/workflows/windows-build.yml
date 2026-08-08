@@ -85,7 +85,7 @@ jobs:
           build\Release\Player.exe --version
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: EasyRPG-Player-Chaos-windows-${{ matrix.arch }}
           path: build/Release/Player.exe
