@@ -1,0 +1,6 @@
+{
+    "name": "Example AngelScript Mod",
+    "author": "Chaos Fork Team",
+    "version": "1.0",
+    "description": "Demonstrates AngelScript modding: spiral attack, shadow beast enemy, and Chaos+ gamemode."
+}

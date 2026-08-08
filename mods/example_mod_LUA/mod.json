@@ -1,0 +1,6 @@
+{
+    "name": "Example Lua Mod",
+    "author": "Chaos Fork Team",
+    "version": "1.0",
+    "description": "Demonstrates Lua modding: bullet rain attack and Rawberry Clone enemy."
+}

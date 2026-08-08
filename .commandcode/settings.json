@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(cmake:*)",
+      "powershell",
+      "Shell(cmd:*)",
+      "Shell(=:*)",
+      "Shell(Write-Output:*)",
+      "Shell(if:*)",
+      "Shell(Test-Path:*)",
+      "Shell({:*)",
+      "Shell(Select-String:*)",
+      "Shell(+:*)",
+      "Shell(}:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

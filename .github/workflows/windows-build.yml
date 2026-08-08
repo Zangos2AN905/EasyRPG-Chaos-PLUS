@@ -1,0 +1,91 @@
+name: Windows Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      git-ref:
+        description: Git Ref (Optional)
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+
+jobs:
+  windows:
+    name: Windows (${{ matrix.arch }})
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64]
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+        if: github.event.inputs.git-ref == ''
+        with:
+          fetch-depth: 0
+
+      - name: Clone Repository (with custom ref)
+        uses: actions/checkout@v4
+        if: github.event.inputs.git-ref != ''
+        with:
+          ref: ${{ github.event.inputs.git-ref }}
+          fetch-depth: 0
+
+      - name: Set up vcpkg caching
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Install vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+
+      - name: Install dependencies via vcpkg
+        run: |
+          C:\vcpkg\vcpkg install --triplet=${{ matrix.arch }}-windows-static `
+            sdl2 libpng pixman fmt icu expat inih `
+            freetype harfbuzz mpg123 libsndfile libvorbis opusfile `
+            speexdsp wildmidi fluidsynth fluidlite libxmp lhasa `
+            nlohmann-json curl enet
+        env:
+          VCPKG_DEFAULT_TRIPLET: ${{ matrix.arch }}-windows-static
+
+      - name: Configure CMake
+        run: |
+          $VER = "(CI, $(Get-Date -Format 'yyyy-MM-dd'))"
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B build `
+            -DCMAKE_TOOLCHAIN_FILE="C:\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET="${{ matrix.arch }}-windows-static" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DPLAYER_BUILD_LIBLCF=ON `
+            -DPLAYER_VERSION_APPEND="$VER"
+        env:
+          VCPKG_INSTALLED_DIR: C:\vcpkg\installed
+
+      - name: Build
+        run: |
+          cmake --build build --config Release --parallel
+        env:
+          VCPKG_INSTALLED_DIR: C:\vcpkg\installed
+
+      - name: Test
+        run: |
+          build\Release\Player.exe --version
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyRPG-Player-Chaos-windows-${{ matrix.arch }}
+          path: build/Release/Player.exe
