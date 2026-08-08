@@ -1,11 +1,9 @@
 
 
-<div style="text-align: center;"><h1>EasyRPG Player: Chaos Fork</h1></div>
-<div style="text-align: center;"><h2>the Ultimate EasyRPG fork</h2></div>
+<div style="text-align: center;"><h1>EasyRPG Player: Chaos Plus</h1></div>
+<div style="text-align: center;"><h2>Another Ultimate EasyRPG fork</h2></div>
 
-What if we took EasyRPG Player, and then added all features that some people wanted and some people didn't want?
-
-This fork is the result of that. It is a fork of EasyRPG Player, that has Multiplayer, Real-time Lighting, Scripting, and alot more!
+WIP README
 
 EasyRPG Player is a game interpreter to play RPG Maker 2000, 2003 and EasyRPG
 games. It uses the LCF parser library (liblcf) to read RPG Maker game data.
