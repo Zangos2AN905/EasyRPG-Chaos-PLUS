@@ -2637,20 +2637,32 @@ void MultiplayerState::HandleChatMessage(uint16_t sender_id, const uint8_t* data
 	PacketReader reader(data, len);
 	reader.readType(); // skip packet type
 
+	uint16_t message_sender_id = reader.readU16();
 	uint8_t chat_type = reader.readU8(); // 0 = normal, 1 = dialogue
 	std::string text = reader.readString();
+	if (!reader.ok()) return;
+
+	// Relayed client packets arrive from the server, so the network callback's
+	// sender ID is not the player who originally sent the message.
+	if (sender_id != 0 && sender_id != message_sender_id) {
+		message_sender_id = sender_id;
+	}
 
 	// Look up sender name
 	std::string sender_name;
-	auto* remote = GetRemotePlayer(sender_id);
-	if (remote) {
-		sender_name = remote->GetPlayerName();
+	auto* peer = NetManager::Instance().FindPeer(message_sender_id);
+	if (peer && !peer->player_name.empty()) {
+		sender_name = peer->player_name;
 	} else {
-		sender_name = "Peer " + std::to_string(sender_id);
+		auto* remote = GetRemotePlayer(message_sender_id);
+		if (remote) sender_name = remote->GetPlayerName();
+	}
+	if (sender_name.empty()) {
+		sender_name = "Peer " + std::to_string(message_sender_id);
 	}
 
 	MultiplayerChat::Instance().OnChatMessageReceived(
-		sender_id, sender_name, text, chat_type == 1);
+		message_sender_id, sender_name, text, chat_type == 1);
 }
 
 void MultiplayerState::InitAsymMode() {

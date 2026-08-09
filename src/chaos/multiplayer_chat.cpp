@@ -219,6 +219,7 @@ void MultiplayerChat::SendNormalChat(const std::string& text) {
 	if (!net.IsConnected()) return;
 
 	PacketWriter pw(PacketType::ChatMessage);
+	pw.write(net.GetLocalPeerId());
 	pw.write(static_cast<uint8_t>(0)); // 0 = normal chat
 	pw.write(text);
 	net.Broadcast(pw, true);
@@ -233,6 +234,7 @@ void MultiplayerChat::SendDialogueChat(const std::string& text) {
 	if (!net.IsConnected()) return;
 
 	PacketWriter pw(PacketType::ChatMessage);
+	pw.write(net.GetLocalPeerId());
 	pw.write(static_cast<uint8_t>(1)); // 1 = dialogue chat
 	pw.write(text);
 	net.Broadcast(pw, true);

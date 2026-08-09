@@ -203,6 +203,7 @@ public:
 	 * @return true if success, otherwise false.
 	 */
 	bool WritePNG(std::ostream& os) const;
+	bool WritePNG(std::ostream& os, bool preserve_alpha) const;
 
 	/**
 	 * Gets the background color
@@ -252,6 +253,9 @@ public:
 	 * @return color at the pixel location
 	 */
 	Color GetColorAt(int x, int y) const;
+
+	/** Sets the color of one pixel. */
+	void SetColorAt(int x, int y, const Color& color);
 
 	/**
 	 * Draws text to bitmap using the configured Font or the Font::Default() font.

@@ -12,9 +12,12 @@
 #include "game_system.h"
 #include "output.h"
 #include "player.h"
+#include "sprite_character.h"
 #include "utils.h"
 #include <algorithm>
 #include <filesystem>
+#include <map>
+#include <sstream>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -31,6 +34,29 @@ static constexpr int CHARS_PER_ROW = 4;
 static constexpr int CHARS_ROWS = 2;
 static constexpr int WINDOW_TOP = 32;
 static constexpr int WINDOW_BOTTOM = 32;
+
+static std::string ColorName(const Color& color) {
+	std::ostringstream stream;
+	stream << "#" << std::hex << std::uppercase;
+	stream.width(2); stream.fill('0'); stream << static_cast<int>(color.red);
+	stream.width(2); stream << static_cast<int>(color.green);
+	stream.width(2); stream << static_cast<int>(color.blue);
+	return stream.str();
+}
+
+static std::vector<Color> ReplacementPalette() {
+	return {
+		Color(0, 0, 0, 255), Color(255, 255, 255, 255), Color(255, 0, 0, 255),
+		Color(0, 255, 0, 255), Color(0, 128, 255, 255), Color(255, 255, 0, 255),
+		Color(255, 128, 0, 255), Color(255, 0, 255, 255), Color(128, 0, 255, 255),
+		Color(128, 128, 128, 255), Color(128, 64, 32, 255)
+	};
+}
+
+static bool IsBackgroundColor(const Color& color, const Color& background) {
+	return color.alpha == 0 || (color.red == background.red &&
+		color.green == background.green && color.blue == background.blue);
+}
 
 static std::string GetExecutableDirectory() {
 #ifdef _WIN32
@@ -185,6 +211,18 @@ void Scene_SkinSelect::CreateWindows() {
 		preview_sprites[i] = std::make_unique<Sprite>();
 		preview_sprites[i]->SetVisible(false);
 	}
+
+	customize_window = std::make_unique<Window_Command>(
+		std::vector<std::string>{"Easy", "Advanced", "Use original"}, Player::screen_width / 2);
+	customize_window->SetX(Player::screen_width / 4);
+	customize_window->SetY(48);
+	customize_window->SetVisible(false);
+
+	easy_window = std::make_unique<Window_Command>(
+		std::vector<std::string>{"Original", "Invert", "Hue +60", "Hue +180", "Monochrome"}, Player::screen_width / 2);
+	easy_window->SetX(Player::screen_width / 4);
+	easy_window->SetY(48);
+	easy_window->SetVisible(false);
 }
 
 void Scene_SkinSelect::vUpdate() {
@@ -197,6 +235,18 @@ void Scene_SkinSelect::vUpdate() {
 			break;
 		case State::IndexSelect:
 			UpdateIndexSelect();
+			break;
+		case State::CustomizeMode:
+			UpdateCustomizeMode();
+			break;
+		case State::EasySelect:
+			UpdateEasySelect();
+			break;
+		case State::AdvancedSelect:
+			UpdateAdvancedSelect();
+			break;
+		case State::ReplacementSelect:
+			UpdateReplacementSelect();
 			break;
 	}
 
@@ -265,10 +315,116 @@ void Scene_SkinSelect::UpdateIndexSelect() {
 
 	if (Input::IsTriggered(Input::DECISION)) {
 		Main_Data::game_system->SePlay(Main_Data::game_system->GetSystemSE(Main_Data::game_system->SFX_Decision));
+		customize_window->SetVisible(true);
+		customize_window->SetActive(true);
+		state = State::CustomizeMode;
+		help_window->SetText("Customize your character: choose Easy or Advanced");
+		return;
+	}
+}
+
+void Scene_SkinSelect::UpdateCustomizeMode() {
+	customize_window->Update();
+	if (Input::IsTriggered(Input::CANCEL)) {
+		customize_window->SetVisible(false);
+		customize_window->SetActive(false);
+		state = State::IndexSelect;
+		return;
+	}
+	if (!Input::IsTriggered(Input::DECISION)) return;
+	const int choice = customize_window->GetIndex();
+	if (choice == 0) {
+		customize_window->SetVisible(false);
+		easy_window->SetVisible(true);
+		easy_window->SetActive(true);
+		state = State::EasySelect;
+		help_window->SetText("Easy customization: apply an effect");
+	} else if (choice == 1) {
+		DetectColors();
+		std::vector<std::string> options;
+		for (const auto& color : detected_colors) options.push_back("Replace " + ColorName(color));
+		options.push_back("Apply replacements");
+		advanced_window = std::make_unique<Window_Command>(options, Player::screen_width / 2);
+		advanced_window->SetX(Player::screen_width / 4);
+		advanced_window->SetY(48);
+		advanced_window->SetVisible(true);
+		advanced_window->SetActive(true);
+		customize_window->SetVisible(false);
+		state = State::AdvancedSelect;
+		help_window->SetText("Advanced customization: choose a detected color");
+	} else {
+		customized_bitmap.reset();
+		ApplySkin();
+		Scene::Pop();
+	}
+}
+
+void Scene_SkinSelect::UpdateEasySelect() {
+	easy_window->Update();
+	if (Input::IsTriggered(Input::CANCEL)) {
+		easy_window->SetVisible(false);
+		easy_window->SetActive(false);
+		customize_window->SetVisible(true);
+		customize_window->SetActive(true);
+		state = State::CustomizeMode;
+		return;
+	}
+	if (!Input::IsTriggered(Input::DECISION)) return;
+	customized_bitmap = BuildEasyBitmap(easy_window->GetIndex());
+	ApplySkin();
+	Scene::Pop();
+}
+
+void Scene_SkinSelect::UpdateAdvancedSelect() {
+	advanced_window->Update();
+	if (Input::IsTriggered(Input::CANCEL)) {
+		advanced_window->SetVisible(false);
+		advanced_window->SetActive(false);
+		customize_window->SetVisible(true);
+		customize_window->SetActive(true);
+		state = State::CustomizeMode;
+		return;
+	}
+	if (!Input::IsTriggered(Input::DECISION)) return;
+	const int index = advanced_window->GetIndex();
+	if (index == static_cast<int>(detected_colors.size())) {
+		customized_bitmap = BuildAdvancedBitmap();
 		ApplySkin();
 		Scene::Pop();
 		return;
 	}
+
+	selected_color = index;
+	std::vector<std::string> options{"Keep original"};
+	for (const auto& color : replacement_colors) options.push_back(ColorName(color));
+	replacement_window = std::make_unique<Window_Command>(options, Player::screen_width / 2);
+	replacement_window->SetX(Player::screen_width / 4);
+	replacement_window->SetY(48);
+	replacement_window->SetVisible(true);
+	replacement_window->SetActive(true);
+	advanced_window->SetVisible(false);
+	state = State::ReplacementSelect;
+	help_window->SetText("Choose replacement for " + ColorName(detected_colors[selected_color]));
+}
+
+void Scene_SkinSelect::UpdateReplacementSelect() {
+	replacement_window->Update();
+	if (Input::IsTriggered(Input::CANCEL)) {
+		replacement_window->SetVisible(false);
+		replacement_window->SetActive(false);
+		advanced_window->SetVisible(true);
+		advanced_window->SetActive(true);
+		state = State::AdvancedSelect;
+		return;
+	}
+	if (!Input::IsTriggered(Input::DECISION)) return;
+	const int index = replacement_window->GetIndex();
+	color_replacements[selected_color] = index == 0 ? detected_colors[selected_color] : replacement_colors[index - 1];
+	replacement_window->SetVisible(false);
+	replacement_window->SetActive(false);
+	advanced_window->SetVisible(true);
+	advanced_window->SetActive(true);
+	state = State::AdvancedSelect;
 }
 
 void Scene_SkinSelect::UpdatePreview() {
@@ -301,7 +457,7 @@ void Scene_SkinSelect::UpdatePreview() {
 			}
 
 			preview_sprites[0]->SetBitmap(preview_bitmap);
-			preview_sprites[0]->SetSrcRect(Rect(preview_anim_frame * cw, 0, cw, ch));
+			preview_sprites[0]->SetSrcRect(Rect(preview_anim_frame * cw, 2 * ch, cw, ch));
 			preview_sprites[0]->SetX(Player::screen_width / 2 + Player::screen_width / 4 - cw / 2);
 			preview_sprites[0]->SetY(Player::screen_height / 2 - ch / 2);
 			preview_sprites[0]->SetVisible(true);
@@ -327,9 +483,9 @@ void Scene_SkinSelect::UpdatePreview() {
 			int col = i % CHARS_PER_ROW;
 			int row = i / CHARS_PER_ROW;
 
-			// Source rect: character i, facing down (row 0), current animation frame
+			// Source rect: character i, facing down (direction row 2), current frame
 			int src_x = (col * CHAR_FRAMES + preview_anim_frame) * cw;
-			int src_y = row * CHAR_DIRS * ch; // first direction (down)
+			int src_y = row * CHAR_DIRS * ch + 2 * ch; // RPG Maker direction 2 is down
 
 			preview_sprites[i]->SetBitmap(preview_bitmap);
 			preview_sprites[i]->SetSrcRect(Rect(src_x, src_y, cw, ch));
@@ -385,8 +541,8 @@ void Scene_SkinSelect::ApplySkin() {
 		return;
 	}
 
-	// Read the charset file bytes for network transfer
-	auto image_data = ReadCharsetFileBytes(charset_entries[idx]);
+	// Read the transformed or original charset bytes for network transfer.
+	auto image_data = customized_bitmap ? EncodeBitmap(customized_bitmap) : ReadCharsetFileBytes(charset_entries[idx]);
 	if (image_data.empty()) {
 		Output::Warning("Skin: Failed to read charset file '{}'", selected_charset);
 		return;
@@ -400,6 +556,107 @@ void Scene_SkinSelect::ApplySkin() {
 	}
 
 	Output::Debug("Skin: Applied skin '{}' index {}", selected_charset, selected_index);
+}
+
+BitmapRef Scene_SkinSelect::BuildEasyBitmap(int effect) const {
+	if (!preview_bitmap || effect == 0) return preview_bitmap;
+	const Color background = preview_bitmap->GetColorAt(0, 0);
+	BitmapRef result = Bitmap::Create(preview_bitmap->GetWidth(), preview_bitmap->GetHeight(), true);
+	if (effect == 2 || effect == 3) {
+		result->HueChangeBlit(0, 0, *preview_bitmap, preview_bitmap->GetRect(), effect == 2 ? 60 : 180);
+		for (int y = 0; y < preview_bitmap->GetHeight(); ++y) {
+			for (int x = 0; x < preview_bitmap->GetWidth(); ++x) {
+				const Color source = preview_bitmap->GetColorAt(x, y);
+				if (IsBackgroundColor(source, background)) result->SetColorAt(x, y, source);
+			}
+		}
+		return result;
+	}
+
+	for (int y = 0; y < preview_bitmap->GetHeight(); ++y) {
+		for (int x = 0; x < preview_bitmap->GetWidth(); ++x) {
+			Color color = preview_bitmap->GetColorAt(x, y);
+			if (IsBackgroundColor(color, background)) {
+				result->SetColorAt(x, y, color);
+				continue;
+			}
+			if (effect == 1) {
+				color.red = 255 - color.red;
+				color.green = 255 - color.green;
+				color.blue = 255 - color.blue;
+			} else {
+				const uint8_t gray = static_cast<uint8_t>((30 * color.red + 59 * color.green + 11 * color.blue) / 100);
+				color.red = color.green = color.blue = gray;
+			}
+			result->SetColorAt(x, y, color);
+		}
+	}
+	return result;
+}
+
+void Scene_SkinSelect::DetectColors() {
+	detected_colors.clear();
+	color_replacements.clear();
+	replacement_colors = ReplacementPalette();
+	if (!preview_bitmap) return;
+
+	const Rect character = Sprite_Character::GetCharacterRect(
+		selected_charset, selected_index, preview_bitmap->GetRect());
+	// RPG Maker charset palette index 0 is the transparent background. Some
+	// true-colour images keep its alpha opaque, so also identify it by the
+	// top-left background pixel instead of relying on alpha alone.
+	const Color background = preview_bitmap->GetColorAt(0, 0);
+	std::map<uint32_t, int> counts;
+	for (int y = character.y; y < character.y + character.height; ++y) {
+		for (int x = character.x; x < character.x + character.width; ++x) {
+			const Color color = preview_bitmap->GetColorAt(x, y);
+			const bool is_background = color.red == background.red &&
+				color.green == background.green && color.blue == background.blue;
+			if (color.alpha > 16 && !is_background) {
+				const uint32_t key = (static_cast<uint32_t>(color.red) << 16) |
+					(static_cast<uint32_t>(color.green) << 8) | color.blue;
+				++counts[key];
+			}
+		}
+	}
+
+	std::vector<std::pair<uint32_t, int>> sorted(counts.begin(), counts.end());
+	std::sort(sorted.begin(), sorted.end(), [](const auto& lhs, const auto& rhs) { return lhs.second > rhs.second; });
+	for (size_t i = 0; i < std::min<size_t>(sorted.size(), 12); ++i) {
+		const uint32_t key = sorted[i].first;
+		detected_colors.emplace_back((key >> 16) & 0xFF, (key >> 8) & 0xFF, key & 0xFF, 255);
+	}
+	color_replacements = detected_colors;
+}
+
+BitmapRef Scene_SkinSelect::BuildAdvancedBitmap() const {
+	if (!preview_bitmap) return preview_bitmap;
+	const Color background = preview_bitmap->GetColorAt(0, 0);
+	BitmapRef result = Bitmap::Create(preview_bitmap->GetWidth(), preview_bitmap->GetHeight(), true);
+	for (int y = 0; y < preview_bitmap->GetHeight(); ++y) {
+		for (int x = 0; x < preview_bitmap->GetWidth(); ++x) {
+			Color color = preview_bitmap->GetColorAt(x, y);
+			if (!IsBackgroundColor(color, background)) {
+				for (size_t i = 0; i < detected_colors.size(); ++i) {
+					if (color.red == detected_colors[i].red && color.green == detected_colors[i].green && color.blue == detected_colors[i].blue) {
+						color.red = color_replacements[i].red;
+						color.green = color_replacements[i].green;
+						color.blue = color_replacements[i].blue;
+						break;
+					}
+				}
+			}
+			result->SetColorAt(x, y, color);
+		}
+	}
+	return result;
+}
+
+std::vector<uint8_t> Scene_SkinSelect::EncodeBitmap(const BitmapRef& bitmap) const {
+	std::ostringstream stream;
+	if (!bitmap || !bitmap->WritePNG(stream, true)) return {};
+	const std::string data = stream.str();
+	return std::vector<uint8_t>(data.begin(), data.end());
 }
 
 } // namespace Chaos

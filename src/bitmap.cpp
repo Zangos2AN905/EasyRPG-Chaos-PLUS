@@ -173,22 +173,26 @@ Bitmap::Bitmap(Bitmap const& source, Rect const& src_rect, bool transparent) {
 }
 
 bool Bitmap::WritePNG(std::ostream& os) const {
+	return WritePNG(os, false);
+}
+
+bool Bitmap::WritePNG(std::ostream& os, bool preserve_alpha) const {
 	size_t const width = GetWidth(), height = GetHeight();
 	size_t const stride = width * 4;
 
 	std::vector<uint32_t> data(width * height);
 
-#ifdef WORDS_BIGENDIAN
-	auto format = PIXMAN_r8g8b8;
-#else
-	auto format = PIXMAN_b8g8r8;
-#endif
+	#ifdef WORDS_BIGENDIAN
+	auto format = preserve_alpha ? PIXMAN_r8g8b8a8 : PIXMAN_r8g8b8;
+	#else
+	auto format = preserve_alpha ? PIXMAN_a8b8g8r8 : PIXMAN_b8g8r8;
+	#endif
 
 	auto dst = PixmanImagePtr{pixman_image_create_bits(format, width, height, &data.front(), stride)};
 	pixman_image_composite32(PIXMAN_OP_SRC, bitmap.get(), NULL, dst.get(),
 							 0, 0, 0, 0, 0, 0, width, height);
 
-	return ImagePNG::Write(os, width, height, &data.front());
+	return ImagePNG::Write(os, width, height, &data.front(), preserve_alpha);
 }
 
 size_t Bitmap::GetSize() const {
@@ -310,6 +314,16 @@ Color Bitmap::GetColorAt(int x, int y) const {
 	format.uint32_to_rgba(pixel, color.red, color.green, color.blue, color.alpha);
 
 	return color;
+}
+
+void Bitmap::SetColorAt(int x, int y, const Color& color) {
+	if (x < 0 || x >= width() || y < 0 || y >= height()) {
+		return;
+	}
+
+	auto* pos = &reinterpret_cast<uint8_t*>(pixels())[y * pitch() + x * bpp()];
+	*reinterpret_cast<uint32_t*>(pos) = format.rgba_to_uint32_t(
+		color.red, color.green, color.blue, color.alpha);
 }
 
 void Bitmap::HueChangeBlit(int x, int y, Bitmap const& src, Rect const& src_rect_, double hue_) {
