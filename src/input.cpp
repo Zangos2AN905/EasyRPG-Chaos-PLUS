@@ -49,6 +49,7 @@ namespace Input {
 	std::array<int, BUTTON_COUNT> press_time;
 	std::bitset<BUTTON_COUNT> triggered, repeated, released;
 	Input::KeyStatus raw_triggered, raw_pressed, raw_released;
+	bool caps_lock_active = false;
 	int dir4;
 	int dir8;
 	std::unique_ptr<Source> source;
@@ -71,6 +72,7 @@ void Input::Init(
 	raw_triggered.reset();
 	raw_pressed.reset();
 	raw_released.reset();
+	caps_lock_active = false;
 
 	DirectionMappingArray directions = {
 		{ Direction::DOWN, DOWN },
@@ -170,6 +172,9 @@ void Input::Update() {
 	for (unsigned i = 0; i < Input::Keys::KEYS_COUNT; ++i) {
 		raw_triggered[i] = raw_pressed_now[i] && !raw_pressed[i];
 		raw_released[i] = !raw_pressed_now[i] && raw_pressed[i];
+	}
+	if (raw_triggered[Input::Keys::CAPS_LOCK]) {
+		caps_lock_active = !caps_lock_active;
 	}
 	raw_pressed = raw_pressed_now;
 }
@@ -360,6 +365,10 @@ bool Input::IsRawKeyTriggered(Input::Keys::InputKey key) {
 
 bool Input::IsRawKeyReleased(Input::Keys::InputKey key) {
 	return raw_released[key];
+}
+
+bool Input::IsCapsLockActive() {
+	return caps_lock_active;
 }
 
 const Input::KeyStatus& Input::GetAllRawPressed() {

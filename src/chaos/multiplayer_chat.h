@@ -7,9 +7,11 @@
 #define EP_CHAOS_MULTIPLAYER_CHAT_H
 
 #include <deque>
+#include <array>
 #include <memory>
 #include <string>
 #include <cstdint>
+#include "font.h"
 
 class Window_Help;
 
@@ -41,6 +43,9 @@ struct ChatEntry {
 class MultiplayerChat {
 public:
 	static MultiplayerChat& Instance();
+
+	/** Font with Twemoji as the primary face and the game font as fallback. */
+	static FontRef GetChatFont();
 
 	// ---- Lobby settings -----------------------------------------------
 	bool IsChatEnabled() const { return chat_enabled; }
@@ -99,6 +104,7 @@ private:
 	bool input_dialogue_mode = false;
 	std::string input_buffer;
 	int input_cursor = 0;
+	std::array<int, 256> key_hold_frames{};
 
 	// Normal chat overlay (top of screen)
 	static constexpr int MAX_OVERLAY_LINES = 4;

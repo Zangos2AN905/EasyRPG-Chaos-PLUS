@@ -22,6 +22,31 @@
 
 namespace Chaos {
 
+FontRef MultiplayerChat::GetChatFont() {
+	static FontRef chat_font;
+	static bool initialized = false;
+	if (initialized) return chat_font;
+	initialized = true;
+
+	FontRef fallback = Font::Default();
+	if (!fallback) fallback = Font::DefaultBitmapFont();
+	int size = fallback ? fallback->GetCurrentStyle().size : 12;
+	if (size <= 0) size = 12;
+
+	// Keep the asset lookup relative to the project/runtime root so builds do
+	// not depend on a developer's absolute filesystem path.
+	auto font_fs = FileFinder::Root().Create("assets/Font");
+	if (font_fs) {
+		auto is = font_fs.OpenInputStream("Twemoji.Mozilla.ttf");
+		if (is) {
+			chat_font = Font::CreateFtFont(std::move(is), size, false, false);
+			if (chat_font && fallback) chat_font->SetFallbackFont(fallback);
+		}
+	}
+
+	return chat_font;
+}
+
 const std::string MultiplayerChat::input_chars =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?'-:;()";
 
@@ -46,6 +71,10 @@ void MultiplayerChat::OnMapLoaded() {
 												 Player::screen_width, 32);
 	input_window->SetVisible(false);
 	input_window->SetZ(Priority_Window + 200);
+	if (auto chat_font = GetChatFont()) {
+		overlay_window->SetFont(chat_font);
+		input_window->SetFont(chat_font);
+	}
 
 }
 
@@ -116,6 +145,7 @@ void MultiplayerChat::OpenInput(bool dialogue_mode) {
 	input_dialogue_mode = dialogue_mode;
 	input_buffer.clear();
 	input_cursor = 0;
+	key_hold_frames.fill(0);
 
 	if (input_window) {
 		input_window->SetVisible(true);
@@ -127,6 +157,7 @@ void MultiplayerChat::CloseInput() {
 	input_active = false;
 	input_buffer.clear();
 	input_cursor = 0;
+	key_hold_frames.fill(0);
 	if (input_window) {
 		input_window->SetVisible(false);
 	}
@@ -155,50 +186,74 @@ void MultiplayerChat::UpdateInput() {
 	}
 
 	// Backspace
-	if (Input::IsRawKeyTriggered(Input::Keys::BACKSPACE)) {
-		if (!input_buffer.empty()) {
-			input_buffer.pop_back();
-		}
+	const bool backspace_pressed = Input::IsRawKeyPressed(Input::Keys::BACKSPACE);
+	int& backspace_held = key_hold_frames[Input::Keys::BACKSPACE];
+	bool erase = false;
+	if (!backspace_pressed) {
+		backspace_held = 0;
+	} else if (Input::IsRawKeyTriggered(Input::Keys::BACKSPACE)) {
+		backspace_held = 1;
+		erase = true;
+	} else if (backspace_held > 0) {
+		++backspace_held;
+		erase = backspace_held >= 30 && (backspace_held - 30) % 4 == 0;
+	}
+	if (erase && !input_buffer.empty()) {
+		input_buffer.pop_back();
 	}
 
 	// Character input — scan all printable keys
-	static const struct { Input::Keys::InputKey key; char lower; char upper; } char_keys[] = {
-		{ Input::Keys::A, 'a', 'A' }, { Input::Keys::B, 'b', 'B' },
-		{ Input::Keys::C, 'c', 'C' }, { Input::Keys::D, 'd', 'D' },
-		{ Input::Keys::E, 'e', 'E' }, { Input::Keys::F, 'f', 'F' },
-		{ Input::Keys::G, 'g', 'G' }, { Input::Keys::H, 'h', 'H' },
-		{ Input::Keys::I, 'i', 'I' }, { Input::Keys::J, 'j', 'J' },
-		{ Input::Keys::K, 'k', 'K' }, { Input::Keys::L, 'l', 'L' },
-		{ Input::Keys::M, 'm', 'M' }, { Input::Keys::N, 'n', 'N' },
-		{ Input::Keys::O, 'o', 'O' }, { Input::Keys::P, 'p', 'P' },
-		{ Input::Keys::Q, 'q', 'Q' }, { Input::Keys::R, 'r', 'R' },
-		{ Input::Keys::S, 's', 'S' },
+	static const struct { Input::Keys::InputKey key; char lower; char upper; bool letter; } char_keys[] = {
+		{ Input::Keys::A, 'a', 'A', true }, { Input::Keys::B, 'b', 'B', true },
+		{ Input::Keys::C, 'c', 'C', true }, { Input::Keys::D, 'd', 'D', true },
+		{ Input::Keys::E, 'e', 'E', true }, { Input::Keys::F, 'f', 'F', true },
+		{ Input::Keys::G, 'g', 'G', true }, { Input::Keys::H, 'h', 'H', true },
+		{ Input::Keys::I, 'i', 'I', true }, { Input::Keys::J, 'j', 'J', true },
+		{ Input::Keys::K, 'k', 'K', true }, { Input::Keys::L, 'l', 'L', true },
+		{ Input::Keys::M, 'm', 'M', true }, { Input::Keys::N, 'n', 'N', true },
+		{ Input::Keys::O, 'o', 'O', true }, { Input::Keys::P, 'p', 'P', true },
+		{ Input::Keys::Q, 'q', 'Q', true }, { Input::Keys::R, 'r', 'R', true },
+		{ Input::Keys::S, 's', 'S', true },
 		// T is the chat trigger — still allow typing T once input is open
-		{ Input::Keys::T, 't', 'T' },
-		{ Input::Keys::U, 'u', 'U' }, { Input::Keys::V, 'v', 'V' },
-		{ Input::Keys::W, 'w', 'W' }, { Input::Keys::X, 'x', 'X' },
-		{ Input::Keys::Y, 'y', 'Y' }, { Input::Keys::Z, 'z', 'Z' },
-		{ Input::Keys::N0, '0', ')' }, { Input::Keys::N1, '1', '!' },
-		{ Input::Keys::N2, '2', '@' }, { Input::Keys::N3, '3', '#' },
-		{ Input::Keys::N4, '4', '$' }, { Input::Keys::N5, '5', '%' },
-		{ Input::Keys::N6, '6', '^' }, { Input::Keys::N7, '7', '&' },
-		{ Input::Keys::N8, '8', '*' }, { Input::Keys::N9, '9', '(' },
-		{ Input::Keys::SPACE, ' ', ' ' },
-		{ Input::Keys::PERIOD, '.', '>' },
-		{ Input::Keys::COMMA, ',', '<' },
-		{ Input::Keys::SLASH, '/', '?' },
-		{ Input::Keys::SEMICOLON, ';', ':' },
-		{ Input::Keys::APOSTROPH, '\'', '"' },
+		{ Input::Keys::T, 't', 'T', true },
+		{ Input::Keys::U, 'u', 'U', true }, { Input::Keys::V, 'v', 'V', true },
+		{ Input::Keys::W, 'w', 'W', true }, { Input::Keys::X, 'x', 'X', true },
+		{ Input::Keys::Y, 'y', 'Y', true }, { Input::Keys::Z, 'z', 'Z', true },
+		{ Input::Keys::N0, '0', ')', false }, { Input::Keys::N1, '1', '!', false },
+		{ Input::Keys::N2, '2', '@', false }, { Input::Keys::N3, '3', '#', false },
+		{ Input::Keys::N4, '4', '$', false }, { Input::Keys::N5, '5', '%', false },
+		{ Input::Keys::N6, '6', '^', false }, { Input::Keys::N7, '7', '&', false },
+		{ Input::Keys::N8, '8', '*', false }, { Input::Keys::N9, '9', '(', false },
+		{ Input::Keys::SPACE, ' ', ' ', false },
+		{ Input::Keys::PERIOD, '.', '>', false },
+		{ Input::Keys::COMMA, ',', '<', false },
+		{ Input::Keys::SLASH, '/', '?', false },
+		{ Input::Keys::SEMICOLON, ';', ':', false },
+		{ Input::Keys::APOSTROPH, '\'', '"', false },
 	};
 
 	bool shift = Input::IsRawKeyPressed(Input::Keys::LSHIFT) ||
 				 Input::IsRawKeyPressed(Input::Keys::RSHIFT);
+	bool caps_lock = Input::IsCapsLockActive();
 
 	static constexpr int MAX_CHAT_LEN = 80;
 	if (static_cast<int>(input_buffer.size()) < MAX_CHAT_LEN) {
 		for (auto& ck : char_keys) {
-			if (Input::IsRawKeyTriggered(ck.key)) {
-				input_buffer += shift ? ck.upper : ck.lower;
+			const bool pressed = Input::IsRawKeyPressed(ck.key);
+			int& held = key_hold_frames[static_cast<unsigned>(ck.key)];
+			bool insert = false;
+			if (!pressed) {
+				held = 0;
+			} else if (Input::IsRawKeyTriggered(ck.key)) {
+				held = 1;
+				insert = true;
+			} else if (held > 0) {
+				++held;
+				insert = held >= 30 && (held - 30) % 4 == 0;
+			}
+			if (insert) {
+				const bool uppercase = ck.letter ? (shift != caps_lock) : shift;
+				input_buffer += uppercase ? ck.upper : ck.lower;
 			}
 		}
 	}
@@ -316,7 +371,7 @@ void MultiplayerChat::RefreshOverlay() {
 
 	std::string combined;
 	for (size_t i = 0; i < overlay_entries.size(); ++i) {
-		if (i > 0) combined += "  ";
+		if (i > 0) combined += "\n";
 		combined += overlay_entries[i].sender + ": " + overlay_entries[i].text;
 	}
 	overlay_window->SetText(combined);

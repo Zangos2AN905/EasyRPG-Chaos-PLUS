@@ -19,6 +19,7 @@
 #include "window_help.h"
 #include "bitmap.h"
 #include "font.h"
+#include <algorithm>
 
 Window_Help::Window_Help(int ix, int iy, int iwidth, int iheight, Drawable::Flags flags) :
 	Window_Base(ix, iy, iwidth, iheight, flags),
@@ -54,26 +55,38 @@ void Window_Help::Clear() {
 }
 
 void Window_Help::AddText(std::string text, int color, Text::Alignment align, bool halfwidthspace) {
-	std::string::size_type pos = 0;
-	std::string::size_type nextpos = 0;
-	while (nextpos != std::string::npos) {
-		nextpos = text.find(' ', pos);
-		auto segment = std::string_view(text).substr(pos, nextpos - pos);
-		auto offset = contents->TextDraw(text_x_offset, 2, color, segment, align);
-		text_x_offset += offset.x;
+	const int start_x = text_x_offset;
+	int max_width = 0;
+	int line_y = 2;
+	std::string::size_type line_start = 0;
+	while (line_start <= text.size()) {
+		const auto line_end = text.find('\n', line_start);
+		const auto line = std::string_view(text).substr(line_start, line_end - line_start);
+		text_x_offset = start_x;
 
-		// Special handling for proportional fonts: If the "normal" space is already small do not half it again
-		if (nextpos != decltype(text)::npos) {
-			int space_width = Text::GetSize(*(font ? font : Font::Default()), " ").width;
+		std::string::size_type pos = 0;
+		while (pos <= line.size()) {
+			const auto nextpos = line.find(' ', pos);
+			auto segment = line.substr(pos, nextpos - pos);
+			auto offset = contents->TextDraw(text_x_offset, line_y, color, segment, align);
+			text_x_offset += offset.x;
 
-			if (halfwidthspace && space_width >= 6) {
-				text_x_offset += space_width / 2;
+			// Special handling for proportional fonts: If the "normal" space is already small do not half it again
+			if (nextpos != std::string_view::npos) {
+				int space_width = Text::GetSize(*(font ? font : Font::Default()), " ").width;
+				text_x_offset += (halfwidthspace && space_width >= 6) ? space_width / 2 : space_width;
+				pos = nextpos + 1;
 			} else {
-				text_x_offset += space_width;
+				break;
 			}
-			pos = nextpos + 1;
 		}
+		max_width = std::max(max_width, text_x_offset - start_x);
+
+		if (line_end == std::string::npos) break;
+		line_start = line_end + 1;
+		line_y += Text::GetSize(*(font ? font : Font::Default()), "A").height;
 	}
+	text_x_offset = start_x + max_width;
 }
 
 void Window_Help::SetAnimation(Window_Help::Animation animation) {

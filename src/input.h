@@ -260,6 +260,9 @@ namespace Input {
 	 */
 	bool IsRawKeyReleased(Input::Keys::InputKey key);
 
+	/** Returns the tracked Caps Lock toggle state. */
+	bool IsCapsLockActive();
+
 	/**
 	 * Gets all raw keys being pressed.
 	 *

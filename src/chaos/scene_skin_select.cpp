@@ -219,7 +219,8 @@ void Scene_SkinSelect::CreateWindows() {
 	customize_window->SetVisible(false);
 
 	easy_window = std::make_unique<Window_Command>(
-		std::vector<std::string>{"Original", "Invert", "Hue +60", "Hue +180", "Monochrome"}, Player::screen_width / 2);
+		std::vector<std::string>{"Original", "Invert", "Hue +60", "Hue +180", "Monochrome",
+			"Fell", "Ice", "Moge-ko", "Rawberry"}, Player::screen_width / 2);
 	easy_window->SetX(Player::screen_width / 4);
 	easy_window->SetY(48);
 	easy_window->SetVisible(false);
@@ -370,7 +371,23 @@ void Scene_SkinSelect::UpdateEasySelect() {
 		return;
 	}
 	if (!Input::IsTriggered(Input::DECISION)) return;
-	customized_bitmap = BuildEasyBitmap(easy_window->GetIndex());
+	const int effect = easy_window->GetIndex();
+	if (effect >= 5) {
+		DetectColors();
+		static const std::vector<std::vector<Color>> palettes = {
+			// Fell / Underfell: hot reds with a dark base.
+			{Color(240, 75, 75, 255), Color(143, 29, 29, 255), Color(58, 7, 7, 255), Color(181, 45, 45, 255)},
+			// Ice: pale cyan, blue and deep cold shadows.
+			{Color(217, 246, 255, 255), Color(121, 217, 255, 255), Color(22, 59, 96, 255), Color(61, 143, 202, 255)},
+			// Moge-ko: hair/hat, long shirt, tshirt, pants/skirt.
+			{Color(0xFF, 0xD9, 0x9B, 255), Color(0xF7, 0x64, 0x6E, 255), Color(0x1B, 0x0C, 0x05, 255), Color(0xBE, 0x2E, 0x45, 255)},
+			// Rawberry Preserves: hair, shirt, wings.
+			{Color(0xFF, 0xAF, 0x93, 255), Color(0x28, 0x1D, 0x19, 255), Color(0xC3, 0x1E, 0x23, 255)}
+		};
+		customized_bitmap = BuildQuickPaletteBitmap(palettes[effect - 5]);
+	} else {
+		customized_bitmap = BuildEasyBitmap(effect);
+	}
 	ApplySkin();
 	Scene::Pop();
 }
@@ -587,6 +604,29 @@ BitmapRef Scene_SkinSelect::BuildEasyBitmap(int effect) const {
 			} else {
 				const uint8_t gray = static_cast<uint8_t>((30 * color.red + 59 * color.green + 11 * color.blue) / 100);
 				color.red = color.green = color.blue = gray;
+			}
+			result->SetColorAt(x, y, color);
+		}
+	}
+	return result;
+}
+
+BitmapRef Scene_SkinSelect::BuildQuickPaletteBitmap(const std::vector<Color>& palette) const {
+	if (!preview_bitmap) return preview_bitmap;
+	const Color background = preview_bitmap->GetColorAt(0, 0);
+	BitmapRef result = Bitmap::Create(preview_bitmap->GetWidth(), preview_bitmap->GetHeight(), true);
+	for (int y = 0; y < preview_bitmap->GetHeight(); ++y) {
+		for (int x = 0; x < preview_bitmap->GetWidth(); ++x) {
+			Color color = preview_bitmap->GetColorAt(x, y);
+			if (!IsBackgroundColor(color, background)) {
+				for (size_t i = 0; i < detected_colors.size() && i < palette.size(); ++i) {
+					if (color.red == detected_colors[i].red && color.green == detected_colors[i].green && color.blue == detected_colors[i].blue) {
+						color.red = palette[i].red;
+						color.green = palette[i].green;
+						color.blue = palette[i].blue;
+						break;
+					}
+				}
 			}
 			result->SetColorAt(x, y, color);
 		}

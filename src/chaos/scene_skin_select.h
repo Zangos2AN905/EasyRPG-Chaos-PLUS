@@ -53,6 +53,7 @@ private:
 	void ApplySkin();
 	BitmapRef LoadCharsetBitmap(const SkinCharsetEntry& entry);
 	BitmapRef BuildEasyBitmap(int effect) const;
+	BitmapRef BuildQuickPaletteBitmap(const std::vector<Color>& palette) const;
 	BitmapRef BuildAdvancedBitmap() const;
 	void DetectColors();
 	std::vector<uint8_t> EncodeBitmap(const BitmapRef& bitmap) const;

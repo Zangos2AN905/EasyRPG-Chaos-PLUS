@@ -9,6 +9,7 @@
 
 #include "window_base.h"
 #include <string>
+#include <string_view>
 
 namespace Chaos {
 
@@ -34,10 +35,11 @@ private:
 	void DrawNextChar();
 
 	// Full display text and typewriter state
-	std::string full_text;
+	std::u32string full_text;
 	int text_x_start = 0; // x offset (accounts for face)
 	int char_index = 0;   // how many chars revealed so far
 	int text_draw_x = 0;  // current x draw position
+	int text_draw_y = 2;
 	bool text_done = false;
 
 	// Typewriter speed: draw one char every N frames

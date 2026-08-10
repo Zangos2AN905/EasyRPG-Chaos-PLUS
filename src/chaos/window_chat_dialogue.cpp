@@ -9,6 +9,8 @@
 #include "player.h"
 #include "game_system.h"
 #include "main_data.h"
+#include "chaos/multiplayer_chat.h"
+#include "utils.h"
 
 namespace Chaos {
 
@@ -23,6 +25,9 @@ Window_ChatDialogue::Window_ChatDialogue(
 
 	// Content area = width-16 x height-16 (8px border each side)
 	SetContents(Bitmap::Create(width - 16, height - 16));
+	if (auto chat_font = MultiplayerChat::GetChatFont()) {
+		contents->SetFont(chat_font);
+	}
 
 	// Layout constants matching Window_Message
 	constexpr int LeftMargin = 8;
@@ -39,8 +44,9 @@ Window_ChatDialogue::Window_ChatDialogue(
 	}
 
 	// Store full text for typewriter
-	full_text = sender + ": " + message;
+	full_text = Utils::DecodeUTF32(sender + ": " + message);
 	text_draw_x = text_x_start;
+	text_draw_y = 2;
 	char_index = 0;
 	text_done = false;
 
@@ -58,10 +64,17 @@ void Window_ChatDialogue::DrawNextChar() {
 	}
 
 	constexpr int TopMargin = 2;
-	char ch = full_text[char_index];
-	std::string glyph(1, ch);
+	const char32_t ch = full_text[char_index];
+	if (ch == U'\n') {
+		text_draw_x = text_x_start;
+		auto font = contents->GetFont();
+		text_draw_y += font ? font->GetCurrentStyle().size : 12;
+		char_index++;
+		return;
+	}
+	std::string glyph = Utils::EncodeUTF(std::u32string(1, ch));
 
-	auto result = contents->TextDraw(text_draw_x, TopMargin, Font::ColorDefault, glyph);
+	auto result = contents->TextDraw(text_draw_x, text_draw_y, Font::ColorDefault, glyph);
 	text_draw_x += result.x;
 	char_index++;
 
