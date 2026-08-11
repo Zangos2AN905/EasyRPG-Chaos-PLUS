@@ -86,6 +86,10 @@ enum class PacketType : uint8_t {
 
 	// Player skins
 	SkinSet,          // Player -> All: skin charset data (name, index, image bytes)
+
+	// Custom mode
+	CustomModeSettings, // Host -> All: custom mode mix/objective/toggles
+	ChaosEvent,         // Host -> All: random chaos event to apply
 };
 
 // Simple packet buffer for serialization

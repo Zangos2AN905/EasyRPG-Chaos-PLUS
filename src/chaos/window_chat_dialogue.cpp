@@ -9,7 +9,6 @@
 #include "player.h"
 #include "game_system.h"
 #include "main_data.h"
-#include "chaos/multiplayer_chat.h"
 #include "utils.h"
 
 namespace Chaos {
@@ -25,9 +24,6 @@ Window_ChatDialogue::Window_ChatDialogue(
 
 	// Content area = width-16 x height-16 (8px border each side)
 	SetContents(Bitmap::Create(width - 16, height - 16));
-	if (auto chat_font = MultiplayerChat::GetChatFont()) {
-		contents->SetFont(chat_font);
-	}
 
 	// Layout constants matching Window_Message
 	constexpr int LeftMargin = 8;

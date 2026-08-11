@@ -48,6 +48,12 @@ public:
 	/** Whether multiplayer is currently active */
 	bool IsActive() const { return active; }
 
+	/** Whether the given base mode is effectively active (directly or via Custom mode mix) */
+	bool IsModeActive(MultiplayerMode m) const;
+
+	/** Whether battle sync applies (Single/TeamParty/Chaotix, directly or via Custom mix) */
+	bool IsBattleSyncMode() const;
+
 	/** Whether the host has disconnected (for clients) */
 	bool IsHostDisconnected() const { return host_lost; }
 	void ClearHostDisconnected() { host_lost = false; }

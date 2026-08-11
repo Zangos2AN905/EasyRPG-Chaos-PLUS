@@ -542,7 +542,15 @@ Scene_Battle_Rpg2k::SceneActionReturn Scene_Battle_Rpg2k::ProcessSceneActionFigh
 							Main_Data::game_system->SePlay(Main_Data::game_system->GetSystemSE(Main_Data::game_system->SFX_Decision));
 							if (mp.IsActive() && mp.IsInMultiplayerBattle()) {
 								mp.VoteEscape(true);
-								waiting_for_escape_vote = true;
+								// In Chaotix mode a single escape vote triggers
+								// escape for everyone, so we don't wait (the
+								// other player might be on auto-battle and never
+								// vote, which would softlock the escape).
+								if (mp.IsModeActive(Chaos::MultiplayerMode::Chaotix)) {
+									SetState(State_Escape);
+								} else {
+									waiting_for_escape_vote = true;
+								}
 							} else {
 								SetState(State_Escape);
 							}

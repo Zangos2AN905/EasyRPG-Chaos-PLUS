@@ -54,6 +54,7 @@ std::string state_buf;
 // Discord user info (populated on ready)
 std::string discord_username;
 std::string discord_user_id;
+std::string discord_avatar_hash;
 bool has_discord_user = false;
 
 // Multiplayer presence data
@@ -76,6 +77,9 @@ void OnReady(const DiscordUser* user) {
 		if (user->userId) {
 			discord_user_id = user->userId;
 		}
+		if (user->avatar) {
+			discord_avatar_hash = user->avatar;
+		}
 		has_discord_user = true;
 	} else {
 		Output::Debug("Discord RPC: Connected (no user info)");
@@ -87,6 +91,7 @@ void OnDisconnected(int errorCode, const char* message) {
 	has_discord_user = false;
 	discord_username.clear();
 	discord_user_id.clear();
+	discord_avatar_hash.clear();
 }
 
 void OnErrored(int errorCode, const char* message) {
@@ -204,6 +209,7 @@ void Chaos::DiscordIntegration::Shutdown() {
 	has_discord_user = false;
 	discord_username.clear();
 	discord_user_id.clear();
+	discord_avatar_hash.clear();
 	join_secret_buf.clear();
 	party_id_buf.clear();
 	join_callback = nullptr;
@@ -310,6 +316,10 @@ const std::string& Chaos::DiscordIntegration::GetDiscordUsername() {
 
 const std::string& Chaos::DiscordIntegration::GetDiscordUserId() {
 	return discord_user_id;
+}
+
+const std::string& Chaos::DiscordIntegration::GetDiscordAvatarHash() {
+	return discord_avatar_hash;
 }
 
 void Chaos::DiscordIntegration::SetJoinSecret(const std::string& secret) {

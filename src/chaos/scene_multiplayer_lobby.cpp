@@ -7,6 +7,8 @@
 #include "chaos/multiplayer_mode.h"
 #include "chaos/multiplayer_state.h"
 #include "chaos/multiplayer_chat.h"
+#include "chaos/custom_mode.h"
+#include "chaos/scene_custom_mode_setup.h"
 #include "chaos/discord_integration.h"
 #include "chaos/scene_skin_select.h"
 #include "chaos/game_file_transfer.h"
@@ -186,14 +188,14 @@ void Scene_MultiplayerLobby::CreateWindows() {
 	hostjoin_window->SetVisible(false);
 
 	// Mode selection (for host)
+	// Custom mode is included in the enum; it is handled specially in
+	// UpdateModeSelect/UpdateRelayModeSelect (opens the setup scene).
 	std::vector<std::string> mode_options;
 	for (int i = 0; i < GetModeCount(); ++i) {
 		auto& props = GetModeProperties(static_cast<MultiplayerMode>(i));
 		mode_options.push_back(props.name);
 	}
-	mode_options.push_back("Custom Mode");
 	mode_window = std::make_unique<Window_Command>(mode_options, Player::screen_width / 2);
-	mode_window->DisableItem(GetModeCount());
 	mode_window->SetX(Player::screen_width / 4);
 	mode_window->SetY(32);
 	mode_window->SetHeight(static_cast<int>(mode_options.size()) * 16 + 32);
@@ -486,6 +488,13 @@ void Scene_MultiplayerLobby::UpdateHostOrJoin() {
 }
 
 void Scene_MultiplayerLobby::UpdateModeSelect() {
+	// Returning from custom mode setup: start hosting with Custom mode
+	if (Chaos::CustomMode::Instance().HasPendingSettings()) {
+		mode_window->SetVisible(false);
+		StartHostingCustom();
+		return;
+	}
+
 	mode_window->Update();
 
 	if (Input::IsTriggered(Input::CANCEL)) {
@@ -499,15 +508,20 @@ void Scene_MultiplayerLobby::UpdateModeSelect() {
 
 	// Show mode description in help
 	int idx = mode_window->GetIndex();
-	if (idx == GetModeCount()) {
-		help_window->SetText("Create your very own gamemode without any C++ knowledge!");
+	int custom_idx = static_cast<int>(Chaos::MultiplayerMode::Custom);
+	if (idx == custom_idx) {
+		help_window->SetText("Mix two modes, pick an objective, toggle chaos features.");
 	} else if (idx >= 0 && idx < GetModeCount()) {
 		auto& props = GetModeProperties(static_cast<MultiplayerMode>(idx));
 		help_window->SetText(props.description);
 	}
 
 	if (Input::IsTriggered(Input::DECISION)) {
-		if (idx == GetModeCount()) return;
+		if (idx == custom_idx) {
+			Main_Data::game_system->SePlay(Main_Data::game_system->GetSystemSE(Main_Data::game_system->SFX_Decision));
+			Scene::Push(std::make_shared<Scene_CustomModeSetup>(false), false);
+			return;
+		}
 		Main_Data::game_system->SePlay(Main_Data::game_system->GetSystemSE(Main_Data::game_system->SFX_Decision));
 		StartHosting();
 	}
@@ -705,9 +719,9 @@ void Scene_MultiplayerLobby::UpdateWaiting() {
 	help_window->SetText(GetWaitingHelpText());
 }
 
-void Scene_MultiplayerLobby::StartHosting() {
+void Scene_MultiplayerLobby::StartHosting(int mode_idx_override) {
 	auto& net = NetManager::Instance();
-	int mode_idx = mode_window->GetIndex();
+	int mode_idx = mode_idx_override >= 0 ? mode_idx_override : mode_window->GetIndex();
 	if (mode_idx < 0 || mode_idx >= GetModeCount()) return;
 	auto mode = static_cast<MultiplayerMode>(mode_idx);
 	auto& props = GetModeProperties(mode);
@@ -732,6 +746,11 @@ void Scene_MultiplayerLobby::StartHosting() {
 	settings_window->SetActive(false);
 
 	help_window->SetText(GetWaitingHelpText());
+}
+
+void Scene_MultiplayerLobby::StartHostingCustom() {
+	CustomMode::Instance().TakePendingSettings();
+	StartHosting(static_cast<int>(Chaos::MultiplayerMode::Custom));
 }
 
 void Scene_MultiplayerLobby::StartJoining() {
@@ -768,6 +787,13 @@ void Scene_MultiplayerLobby::StartJoining() {
 }
 
 void Scene_MultiplayerLobby::UpdateRelayModeSelect() {
+	// Returning from custom mode setup: start relay hosting with Custom mode
+	if (Chaos::CustomMode::Instance().HasPendingSettings()) {
+		mode_window->SetVisible(false);
+		StartRelayHostingCustom();
+		return;
+	}
+
 	mode_window->Update();
 
 	if (Input::IsTriggered(Input::CANCEL)) {
@@ -780,15 +806,20 @@ void Scene_MultiplayerLobby::UpdateRelayModeSelect() {
 	}
 
 	int idx = mode_window->GetIndex();
-	if (idx == GetModeCount()) {
-		help_window->SetText("Create your very own gamemode without any C++ knowledge!");
+	int custom_idx = static_cast<int>(Chaos::MultiplayerMode::Custom);
+	if (idx == custom_idx) {
+		help_window->SetText("Mix two modes, pick an objective, toggle chaos features.");
 	} else if (idx >= 0 && idx < GetModeCount()) {
 		auto& props = GetModeProperties(static_cast<MultiplayerMode>(idx));
 		help_window->SetText(props.description);
 	}
 
 	if (Input::IsTriggered(Input::DECISION)) {
-		if (idx == GetModeCount()) return;
+		if (idx == custom_idx) {
+			Main_Data::game_system->SePlay(Main_Data::game_system->GetSystemSE(Main_Data::game_system->SFX_Decision));
+			Scene::Push(std::make_shared<Scene_CustomModeSetup>(true), false);
+			return;
+		}
 		Main_Data::game_system->SePlay(Main_Data::game_system->GetSystemSE(Main_Data::game_system->SFX_Decision));
 		StartRelayHosting();
 	}
@@ -995,9 +1026,9 @@ void Scene_MultiplayerLobby::RefreshServerList() {
 	browser_window->SetVisible(true);
 }
 
-void Scene_MultiplayerLobby::StartRelayHosting() {
+void Scene_MultiplayerLobby::StartRelayHosting(int mode_idx_override) {
 	auto& net = NetManager::Instance();
-	int mode_idx = mode_window->GetIndex();
+	int mode_idx = mode_idx_override >= 0 ? mode_idx_override : mode_window->GetIndex();
 	if (mode_idx < 0 || mode_idx >= GetModeCount()) return;
 	auto mode = static_cast<MultiplayerMode>(mode_idx);
 
@@ -1021,6 +1052,11 @@ void Scene_MultiplayerLobby::StartRelayHosting() {
 	settings_window->SetActive(false);
 
 	help_window->SetText("Creating relay room...");
+}
+
+void Scene_MultiplayerLobby::StartRelayHostingCustom() {
+	CustomMode::Instance().TakePendingSettings();
+	StartRelayHosting(static_cast<int>(Chaos::MultiplayerMode::Custom));
 }
 
 void Scene_MultiplayerLobby::StartGame() {

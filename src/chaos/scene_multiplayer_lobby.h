@@ -49,11 +49,13 @@ private:
 	void UpdateDownloading();
 	void UpdateWaiting();
 
-	void StartHosting();
+	void StartHosting(int mode_idx_override = -1);
 	void StartJoining();
-	void StartRelayHosting();
+	void StartRelayHosting(int mode_idx_override = -1);
 	void StartGame();
 	void ClientStartGame();
+	void StartHostingCustom();
+	void StartRelayHostingCustom();
 	void RefreshPlayerList();
 	void RefreshServerList();
 	void RefreshLobbyActionWindow();

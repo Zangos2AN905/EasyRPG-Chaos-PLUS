@@ -40,6 +40,7 @@ namespace DiscordIntegration {
 	bool HasDiscordUser();
 	const std::string& GetDiscordUsername();
 	const std::string& GetDiscordUserId();
+	const std::string& GetDiscordAvatarHash();
 	void SetJoinSecret(const std::string& secret);
 	void SetPartyInfo(const std::string& party_id, int current_size, int max_size);
 	void ClearMultiplayerPresence();
@@ -56,6 +57,7 @@ namespace DiscordIntegration {
 	inline bool HasDiscordUser() { return false; }
 	inline const std::string& GetDiscordUsername() { static const std::string empty; return empty; }
 	inline const std::string& GetDiscordUserId() { static const std::string empty; return empty; }
+	inline const std::string& GetDiscordAvatarHash() { static const std::string empty; return empty; }
 	inline void SetJoinSecret(const std::string&) {}
 	inline void SetPartyInfo(const std::string&, int, int) {}
 	inline void ClearMultiplayerPresence() {}

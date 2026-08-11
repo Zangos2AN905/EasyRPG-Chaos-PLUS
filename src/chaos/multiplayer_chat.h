@@ -6,14 +6,19 @@
 #ifndef EP_CHAOS_MULTIPLAYER_CHAT_H
 #define EP_CHAOS_MULTIPLAYER_CHAT_H
 
+#include "bitmap.h"
 #include <deque>
 #include <array>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <cstdint>
-#include "font.h"
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 class Window_Help;
+class Sprite;
 
 namespace Chaos { class Window_ChatDialogue; }
 
@@ -44,8 +49,6 @@ class MultiplayerChat {
 public:
 	static MultiplayerChat& Instance();
 
-	/** Font with Twemoji as the primary face and the game font as fallback. */
-	static FontRef GetChatFont();
 
 	// ---- Lobby settings -----------------------------------------------
 	bool IsChatEnabled() const { return chat_enabled; }
@@ -88,6 +91,14 @@ private:
 	void UpdateInput();
 	void UpdateOverlay();
 	void UpdateDialogue();
+	void UpdatePlayerList();
+	void RefreshPlayerList();
+	void ProcessAvatarDownloads();
+	void StartAvatarDownload(const std::string& user_id, const std::string& avatar_hash);
+	void UpdateAvatarSprites(const std::vector<uint16_t>& player_ids);
+	void UpdateChatBubbles();
+	void ShowChatBubble(uint16_t peer_id, const std::string& message);
+	static std::string WrapBubbleText(const std::string& message);
 	void RefreshOverlay();
 	void ShowDialogue(const std::string& sender, const std::string& text);
 
@@ -109,9 +120,25 @@ private:
 	// Normal chat overlay (top of screen)
 	static constexpr int MAX_OVERLAY_LINES = 4;
 	static constexpr int OVERLAY_DISPLAY_FRAMES = 300; // ~5 seconds at 60fps
+	static constexpr int BUBBLE_DISPLAY_FRAMES = 180; // ~3 seconds at 60fps
 	std::deque<ChatEntry> overlay_entries;
 	std::unique_ptr<Window_Help> overlay_window;
 	std::unique_ptr<Window_Help> input_window;
+	std::unique_ptr<Window_Help> player_list_window;
+	std::unordered_map<uint16_t, std::unique_ptr<Sprite>> avatar_sprites;
+	std::unordered_map<std::string, BitmapRef> avatar_bitmaps;
+	std::unordered_set<std::string> avatar_downloads;
+	struct AvatarReady {
+		std::string key;
+		std::vector<uint8_t> data;
+	};
+	std::vector<AvatarReady> avatar_ready;
+	std::mutex avatar_mutex;
+	struct ChatBubble {
+		std::unique_ptr<Window_Help> window;
+		int timer = 0;
+	};
+	std::unordered_map<uint16_t, ChatBubble> chat_bubbles;
 
 	// Dialogue chat — queued custom windows
 	static constexpr int DIALOGUE_DISPLAY_FRAMES = 180; // 3 seconds at 60fps

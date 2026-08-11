@@ -522,9 +522,8 @@ std::vector<Game_Actor*> Game_Party::GetTeamActors() const {
 	auto& mp = Chaos::MultiplayerState::Instance();
 	auto& net = Chaos::NetManager::Instance();
 	if (mp.IsActive()) {
-		auto mode = net.GetMode();
-		if (mode == Chaos::MultiplayerMode::Single ||
-			mode == Chaos::MultiplayerMode::TeamParty || mode == Chaos::MultiplayerMode::Chaotix) {
+		if (mp.IsModeActive(Chaos::MultiplayerMode::Single) ||
+			mp.IsModeActive(Chaos::MultiplayerMode::TeamParty) || mp.IsModeActive(Chaos::MultiplayerMode::Chaotix)) {
 			int player_index = static_cast<int>(net.GetLocalPeerId()) - 1;
 			if (player_index >= 0 && player_index < static_cast<int>(data.party.size())) {
 				std::vector<Game_Actor*> result;

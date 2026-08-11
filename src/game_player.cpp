@@ -47,6 +47,7 @@
 #include "chaos/multiplayer_mode.h"
 #include "chaos/undertale_mode.h"
 #include "chaos/game_mode.h"
+#include "chaos/custom_mode.h"
 #include "chaos/gamemode_split_mode.h"
 
 Game_Player::Game_Player(): Game_PlayerBase(Player)
@@ -387,8 +388,14 @@ void Game_Player::UpdateNextMovementAction() {
 		return;
 	}
 
+	// Custom mode: reversed controls
+	int dir4 = Input::dir4;
+	if (Chaos::CustomMode::Instance().IsActive()) {
+		dir4 = Chaos::CustomMode::Instance().ReverseDir4(dir4);
+	}
+
 	int move_dir = -1;
-	switch (Input::dir4) {
+	switch (dir4) {
 		case 2:
 			move_dir = Down;
 			break;
@@ -573,9 +580,8 @@ void Game_Player::ResetGraphic() {
 	// In multiplayer team mode, use the actor assigned to this player's peer_id
 	auto& net = Chaos::NetManager::Instance();
 	if (mp.IsActive()) {
-		auto mode = net.GetMode();
-		if (mode == Chaos::MultiplayerMode::Single ||
-			mode == Chaos::MultiplayerMode::TeamParty || mode == Chaos::MultiplayerMode::Chaotix) {
+		if (mp.IsModeActive(Chaos::MultiplayerMode::Single) ||
+			mp.IsModeActive(Chaos::MultiplayerMode::TeamParty) || mp.IsModeActive(Chaos::MultiplayerMode::Chaotix)) {
 			int player_index = static_cast<int>(net.GetLocalPeerId()) - 1;
 			auto actors = Main_Data::game_party->GetActors();
 			if (player_index >= 0 && player_index < static_cast<int>(actors.size())) {
@@ -584,6 +590,10 @@ void Game_Player::ResetGraphic() {
 					SetSpriteGraphic(ToString(actor->GetSpriteName()), actor->GetSpriteIndex());
 					if (mp.HasSkin()) {
 						SetSpriteGraphic("__skin_local", mp.GetSkinCharIndex());
+					}
+					// Custom mode: forced skin takes priority
+					if (Chaos::CustomMode::Instance().IsForcedSkinActive()) {
+						SetSpriteGraphic(Chaos::CustomMode::Instance().GetForcedSkinName(), Chaos::CustomMode::Instance().GetForcedSkinIndex());
 					}
 					SetTransparency(actor->GetSpriteTransparency());
 					return;

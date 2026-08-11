@@ -4,6 +4,7 @@
 
 #include "chaos/multiplayer_state.h"
 #include "chaos/multiplayer_chat.h"
+#include "chaos/custom_mode.h"
 #include "chaos/net_manager.h"
 #include "chaos/net_packet.h"
 #include "chaos/drawable_rubber_band.h"
@@ -54,19 +55,39 @@ void MultiplayerState::StartMultiplayer() {
 	if (active) return;
 	active = true;
 	SetupCallbacks();
-	if (NetManager::Instance().GetMode() == MultiplayerMode::Split) {
+	if (NetManager::Instance().GetMode() == MultiplayerMode::Custom) {
+		CustomMode::Instance().Start();
+	}
+	if (IsModeActive(MultiplayerMode::Split)) {
 		SplitMode::Instance().Start();
 	}
-	if (NetManager::Instance().GetMode() == MultiplayerMode::Underwater) {
+	if (IsModeActive(MultiplayerMode::Underwater)) {
 		UnderwaterMode::Instance().Start();
 	}
 	Output::Debug("Multiplayer: State manager started");
+}
+
+bool MultiplayerState::IsModeActive(MultiplayerMode m) const {
+	if (!active) return false;
+	auto cur = NetManager::Instance().GetMode();
+	if (cur == m) return true;
+	if (cur == MultiplayerMode::Custom) {
+		return CustomMode::Instance().IsModeInMix(m);
+	}
+	return false;
+}
+
+bool MultiplayerState::IsBattleSyncMode() const {
+	return IsModeActive(MultiplayerMode::Single) ||
+	       IsModeActive(MultiplayerMode::TeamParty) ||
+	       IsModeActive(MultiplayerMode::Chaotix);
 }
 
 void MultiplayerState::StopMultiplayer() {
 	if (!active) return;
 	SplitMode::Instance().Stop();
 	UnderwaterMode::Instance().Stop();
+	CustomMode::Instance().Stop();
 	ExitSpectatorMode();
 	active = false;
 	host_lost = false;
@@ -182,7 +203,9 @@ void MultiplayerState::Update() {
 	}
 
 	// Sync switches and variables based on mode
-	auto& props = GetModeProperties(net.GetMode());
+	auto props = (net.GetMode() == MultiplayerMode::Custom)
+		? CustomMode::Instance().GetEffectiveProperties()
+		: GetModeProperties(net.GetMode());
 	if (props.sync_switches && net.IsHost()) {
 		CheckAndSyncSwitches();
 	}
@@ -233,11 +256,14 @@ void MultiplayerState::Update() {
 		UpdateAsym();
 	}
 
-	if (net.GetMode() == MultiplayerMode::Split) {
+	if (IsModeActive(MultiplayerMode::Split)) {
 		SplitMode::Instance().Update();
 	}
-	if (net.GetMode() == MultiplayerMode::Underwater) {
+	if (IsModeActive(MultiplayerMode::Underwater)) {
 		UnderwaterMode::Instance().Update();
+	}
+	if (net.GetMode() == MultiplayerMode::Custom) {
+		CustomMode::Instance().Update();
 	}
 
 	// Undertale mode: pixel movement is handled via Game_Player hooks
@@ -282,19 +308,27 @@ void MultiplayerState::OnMapLoaded(Spriteset_Map* spriteset) {
 	auto& net = NetManager::Instance();
 
 	// Create rubber band drawable for Chaotix mode
-	if (net.IsConnected() && GetModeProperties(net.GetMode()).proximity_required) {
-		CreateRubberBandDrawable();
+	if (net.IsConnected()) {
+		auto props = (net.GetMode() == MultiplayerMode::Custom)
+			? CustomMode::Instance().GetEffectiveProperties()
+			: GetModeProperties(net.GetMode());
+		if (props.proximity_required) {
+			CreateRubberBandDrawable();
+		}
 	}
 
 	// Create darkness/lighting overlay (available in all modes, including singleplayer)
 	if (!darkness_overlay) {
 		darkness_overlay = std::make_unique<Drawable_DarknessOverlay>();
 	}
-	if (net.GetMode() == MultiplayerMode::Split) {
+	if (IsModeActive(MultiplayerMode::Split)) {
 		SplitMode::Instance().OnMapLoaded(spriteset);
 	}
-	if (net.GetMode() == MultiplayerMode::Underwater) {
+	if (IsModeActive(MultiplayerMode::Underwater)) {
 		UnderwaterMode::Instance().OnMapLoaded(spriteset);
+	}
+	if (net.GetMode() == MultiplayerMode::Custom) {
+		CustomMode::Instance().OnMapLoaded();
 	}
 
 	// Singleplayer Horror mode: enable darkness overlay
@@ -375,7 +409,7 @@ void MultiplayerState::OnMapLoaded(Spriteset_Map* spriteset) {
 				net.Broadcast(var_pw, true);
 
 				// Chaotix mode: force all clients to follow the host's map change
-				if (net.GetMode() == MultiplayerMode::Chaotix) {
+				if (IsModeActive(MultiplayerMode::Chaotix)) {
 					PacketWriter fpw(PacketType::MapChangeForce);
 					fpw.write(static_cast<int32_t>(map_id));
 					fpw.write(static_cast<int32_t>(x));
@@ -389,10 +423,10 @@ void MultiplayerState::OnMapLoaded(Spriteset_Map* spriteset) {
 }
 
 void MultiplayerState::OnMapUnloaded() {
-	if (NetManager::Instance().GetMode() == MultiplayerMode::Split) {
+	if (IsModeActive(MultiplayerMode::Split)) {
 		SplitMode::Instance().OnMapUnloaded();
 	}
-	if (NetManager::Instance().GetMode() == MultiplayerMode::Underwater) {
+	if (IsModeActive(MultiplayerMode::Underwater)) {
 		UnderwaterMode::Instance().OnMapUnloaded();
 	}
 	DestroyRubberBandDrawable();
@@ -424,7 +458,7 @@ void MultiplayerState::OnPlayerConnected(uint16_t peer_id) {
 	Output::Debug("Multiplayer: Created remote player for peer {}", peer_id);
 
 	// If we're on a map, create sprite immediately
-	if (current_spriteset) {
+	if (current_spriteset && ptr->IsOnCurrentMap()) {
 		CreateRemotePlayerSprite(ptr);
 	}
 
@@ -502,8 +536,12 @@ void MultiplayerState::OnPlayerConnected(uint16_t peer_id) {
 		net.SendTo(peer_id, skin_pw, true);
 	}
 
-	if (net.IsHost() && net.GetMode() == MultiplayerMode::Split) {
+if (net.IsHost() && IsModeActive(MultiplayerMode::Split)) {
 		SplitMode::Instance().AssignPeer(peer_id);
+	}
+
+	if (net.IsHost() && net.GetMode() == MultiplayerMode::Custom) {
+		CustomMode::Instance().SendSettingsTo(peer_id);
 	}
 }
 
@@ -612,6 +650,12 @@ void MultiplayerState::OnPacketReceived(uint16_t sender_id, const uint8_t* data,
 		case PacketType::SkinSet:
 			HandleSkinSet(sender_id, data, len);
 			break;
+		case PacketType::CustomModeSettings:
+			CustomMode::Instance().HandleSettingsPacket(data, len);
+			break;
+		case PacketType::ChaosEvent:
+			CustomMode::Instance().HandleEventPacket(data, len);
+			break;
 		default:
 			break;
 	}
@@ -656,13 +700,14 @@ void MultiplayerState::HandlePlayerPosition(uint16_t sender_id, const uint8_t* d
 	if (current_spriteset) {
 		if (!was_on_map && is_on_map) {
 			CreateRemotePlayerSprite(rp);
+		} else if (was_on_map && !is_on_map) {
+			RemoveRemotePlayerSprite(actual_id);
 		}
-		// Note: sprite removal on map change happens when we change maps
 	}
 
 	// Chaotix mode: when a remote player changes map, force all players to follow
 	auto& net = NetManager::Instance();
-	if (net.IsHost() && net.GetMode() == MultiplayerMode::Chaotix) {
+	if (net.IsHost() && IsModeActive(MultiplayerMode::Chaotix)) {
 		if (old_map_id != map_id && old_map_id > 0 && map_id > 0) {
 			// Broadcast MapChangeForce to all clients
 			PacketWriter fpw(PacketType::MapChangeForce);
@@ -971,7 +1016,12 @@ void MultiplayerState::CheckAndSyncVariables() {
 }
 
 void MultiplayerState::CreateRemotePlayerSprite(Game_RemotePlayer* player) {
-	if (!current_spriteset || !player) return;
+	if (!current_spriteset || !player || !player->IsOnCurrentMap()) return;
+
+	if (CustomMode::Instance().IsForcedSkinActive()) {
+		player->SetCharacterSprite(CustomMode::Instance().GetForcedSkinName(), CustomMode::Instance().GetForcedSkinIndex());
+	}
+
 	current_spriteset->AddCharacterSprite(player);
 	Output::Debug("Multiplayer: Created sprite for peer {}", player->GetPeerId());
 }
@@ -992,7 +1042,7 @@ Game_RemotePlayer* MultiplayerState::GetRemotePlayer(uint16_t peer_id) {
 
 bool MultiplayerState::ShouldInterceptGameOver() {
 	if (!active) return false;
-	if (NetManager::Instance().GetMode() == MultiplayerMode::Split &&
+	if (IsModeActive(MultiplayerMode::Split) &&
 		SplitMode::Instance().HandlePlayerDeath()) {
 		return true;
 	}
@@ -1161,7 +1211,7 @@ void MultiplayerState::OnBattleStarted(int troop_id, int terrain_id, bool first_
 	auto& net = NetManager::Instance();
 	auto mode = net.GetMode();
 	// Only sync battles in TeamParty and Chaotix modes
-	if (mode != MultiplayerMode::Single && mode != MultiplayerMode::TeamParty && mode != MultiplayerMode::Chaotix) {
+	if (!IsBattleSyncMode()) {
 		return;
 	}
 
@@ -1211,7 +1261,7 @@ void MultiplayerState::OnBattleEnded(int result) {
 	auto& net = NetManager::Instance();
 	auto mode = net.GetMode();
 	// Only sync battles in TeamParty and Chaotix modes
-	if (mode != MultiplayerMode::Single && mode != MultiplayerMode::TeamParty && mode != MultiplayerMode::Chaotix) {
+	if (!IsBattleSyncMode()) {
 		return;
 	}
 
@@ -1242,7 +1292,7 @@ void MultiplayerState::HandleBattleStart(uint16_t sender_id, const uint8_t* data
 	auto& net = NetManager::Instance();
 	auto mode = net.GetMode();
 	// Only sync battles in TeamParty and Chaotix modes
-	if (mode != MultiplayerMode::Single && mode != MultiplayerMode::TeamParty && mode != MultiplayerMode::Chaotix) {
+	if (!IsBattleSyncMode()) {
 		return;
 	}
 
@@ -1312,7 +1362,7 @@ void MultiplayerState::HandleBattleForce(const uint8_t* data, size_t len) {
 	auto& net = NetManager::Instance();
 	auto mode = net.GetMode();
 	// BattleForce is only used in Chaotix mode
-	if (mode != MultiplayerMode::Chaotix) {
+	if (!IsModeActive(MultiplayerMode::Chaotix)) {
 		return;
 	}
 
@@ -1369,9 +1419,8 @@ void MultiplayerState::HandleBattleEnd(const uint8_t* data, size_t len) {
 	auto& net = NetManager::Instance();
 	auto mode = net.GetMode();
 
-	// In team/chaotix modes, force local battle to end with the same result
-	if (in_battle && (mode == MultiplayerMode::Single ||
-		mode == MultiplayerMode::TeamParty || mode == MultiplayerMode::Chaotix)) {
+// In team/chaotix modes, force local battle to end with the same result
+	if (in_battle && IsBattleSyncMode()) {
 		remote_battle_ended = true;
 		remote_battle_result = static_cast<int>(result);
 		Output::Debug("Multiplayer: Remote peer {} battle ended with result={}, forcing local end", peer_id, result);
@@ -1505,7 +1554,7 @@ bool MultiplayerState::IsRemoteActor(Game_Actor* actor) const {
 	if (!active) return false;
 	auto& net = NetManager::Instance();
 	auto mode = net.GetMode();
-	if (mode != MultiplayerMode::Single && mode != MultiplayerMode::TeamParty && mode != MultiplayerMode::Chaotix) return false;
+	if (!IsBattleSyncMode()) return false;
 
 	int local_index = static_cast<int>(net.GetLocalPeerId()) - 1;
 	auto actors = Main_Data::game_party->GetActors();
@@ -1606,7 +1655,7 @@ void MultiplayerState::HandleEventSync(const uint8_t* data, size_t len) {
 
 void MultiplayerState::OnEventTriggered(int event_id, bool by_decision_key) {
 	auto& net = NetManager::Instance();
-	if (!active || net.GetMode() != MultiplayerMode::Chaotix) return;
+	if (!active || !IsModeActive(MultiplayerMode::Chaotix)) return;
 
 	int page_id = 0;
 	Game_Event* ev = Game_Map::GetEvent(event_id);
@@ -1639,8 +1688,8 @@ void MultiplayerState::OnEventTriggered(int event_id, bool by_decision_key) {
 }
 
 void MultiplayerState::OnEventInput(uint8_t input_type) {
-	auto& net = NetManager::Instance();
-	if (!active || net.GetMode() != MultiplayerMode::Chaotix) return;
+auto& net = NetManager::Instance();
+	if (!active || !IsModeActive(MultiplayerMode::Chaotix)) return;
 	if (input_type > 1) return;
 
 	PacketWriter pw(PacketType::EventInputSync);
@@ -1656,8 +1705,8 @@ void MultiplayerState::OnEventInput(uint8_t input_type) {
 void MultiplayerState::HandleEventTriggerSync(const uint8_t* data, size_t len) {
 	auto& net = NetManager::Instance();
 
-	// Process in Chaotix mode or when spectating
-	if (net.GetMode() != MultiplayerMode::Chaotix && !spectating) return;
+// Process in Chaotix mode or when spectating
+	if (!IsModeActive(MultiplayerMode::Chaotix) && !spectating) return;
 
 	PacketReader reader(data, len);
 	reader.readType();
@@ -1713,7 +1762,7 @@ void MultiplayerState::HandleEventTriggerSync(const uint8_t* data, size_t len) {
 
 void MultiplayerState::HandleEventInputSync(uint16_t sender_id, const uint8_t* data, size_t len) {
 	auto& net = NetManager::Instance();
-	if (net.GetMode() != MultiplayerMode::Chaotix) return;
+	if (!IsModeActive(MultiplayerMode::Chaotix)) return;
 
 	PacketReader reader(data, len);
 	reader.readType();
@@ -1743,7 +1792,7 @@ void MultiplayerState::ApplyPendingEventInput() {
 	if (pending_event_inputs.empty()) return;
 
 	auto& net = NetManager::Instance();
-	if (!active || net.IsHost() || net.GetMode() != MultiplayerMode::Chaotix) {
+	if (!active || net.IsHost() || !IsModeActive(MultiplayerMode::Chaotix)) {
 		pending_event_inputs.clear();
 		return;
 	}
@@ -1816,6 +1865,12 @@ bool MultiplayerState::HasEscapeVoteResult() const {
 }
 
 bool MultiplayerState::IsEscapeApproved() const {
+	// In Chaotix/Custom-Chaotix mode, a single escape vote triggers escape
+	// for everyone. This prevents a softlock when one player is on auto
+	// battle and never casts a vote while the other wants to flee.
+	if (IsModeActive(MultiplayerMode::Chaotix)) {
+		return local_escape_wants || remote_escape_wants;
+	}
 	return local_escape_wants && remote_escape_wants;
 }
 
@@ -2063,7 +2118,12 @@ bool MultiplayerState::ShouldBlockMovement(int dir) const {
 
 	auto& net = NetManager::Instance();
 	if (!net.IsConnected()) return false;
-	if (!GetModeProperties(net.GetMode()).proximity_required) return false;
+	{
+		auto props = (net.GetMode() == MultiplayerMode::Custom)
+			? CustomMode::Instance().GetEffectiveProperties()
+			: GetModeProperties(net.GetMode());
+		if (!props.proximity_required) return false;
+	}
 	if (in_battle) return false;
 
 	auto* hero = Main_Data::game_player.get();
@@ -2636,11 +2696,12 @@ void MultiplayerState::HandleAsymKill(const uint8_t* data, size_t len) {
 void MultiplayerState::HandleChatMessage(uint16_t sender_id, const uint8_t* data, size_t len) {
 	PacketReader reader(data, len);
 	reader.readType(); // skip packet type
+	if (!reader.ok()) return;
 
 	uint16_t message_sender_id = reader.readU16();
 	uint8_t chat_type = reader.readU8(); // 0 = normal, 1 = dialogue
 	std::string text = reader.readString();
-	if (!reader.ok()) return;
+	if (!reader.ok() || chat_type > 1 || text.size() > 80) return;
 
 	// Relayed client packets arrive from the server, so the network callback's
 	// sender ID is not the player who originally sent the message.

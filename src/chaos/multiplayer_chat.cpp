@@ -7,7 +7,10 @@
 #include "chaos/net_manager.h"
 #include "chaos/net_packet.h"
 #include "chaos/multiplayer_mode.h"
+#include "chaos/discord_integration.h"
 #include "chaos/window_chat_dialogue.h"
+#include "game_character.h"
+#include "game_player.h"
 #include "input.h"
 #include "keys.h"
 #include "player.h"
@@ -17,35 +20,26 @@
 #include "main_data.h"
 #include "window_help.h"
 #include "output.h"
+#include "sprite.h"
+#include <curl/curl.h>
 #include <algorithm>
 #include <cctype>
+#include <thread>
 
 namespace Chaos {
 
-FontRef MultiplayerChat::GetChatFont() {
-	static FontRef chat_font;
-	static bool initialized = false;
-	if (initialized) return chat_font;
-	initialized = true;
+namespace {
 
-	FontRef fallback = Font::Default();
-	if (!fallback) fallback = Font::DefaultBitmapFont();
-	int size = fallback ? fallback->GetCurrentStyle().size : 12;
-	if (size <= 0) size = 12;
-
-	// Keep the asset lookup relative to the project/runtime root so builds do
-	// not depend on a developer's absolute filesystem path.
-	auto font_fs = FileFinder::Root().Create("assets/Font");
-	if (font_fs) {
-		auto is = font_fs.OpenInputStream("Twemoji.Mozilla.ttf");
-		if (is) {
-			chat_font = Font::CreateFtFont(std::move(is), size, false, false);
-			if (chat_font && fallback) chat_font->SetFallbackFont(fallback);
-		}
-	}
-
-	return chat_font;
+size_t AvatarWriteCallback(void* data, size_t size, size_t count, void* user_data) {
+	auto& output = *static_cast<std::vector<uint8_t>*>(user_data);
+	const size_t bytes = size * count;
+	if (output.size() + bytes > 1024 * 1024) return 0;
+	const auto* begin = static_cast<const uint8_t*>(data);
+	output.insert(output.end(), begin, begin + bytes);
+	return bytes;
 }
+
+} // namespace
 
 const std::string MultiplayerChat::input_chars =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?'-:;()";
@@ -71,10 +65,10 @@ void MultiplayerChat::OnMapLoaded() {
 												 Player::screen_width, 32);
 	input_window->SetVisible(false);
 	input_window->SetZ(Priority_Window + 200);
-	if (auto chat_font = GetChatFont()) {
-		overlay_window->SetFont(chat_font);
-		input_window->SetFont(chat_font);
-	}
+	player_list_window = std::make_unique<Window_Help>(
+		Player::screen_width / 2 - 180, 32, 360, Player::screen_height - 64);
+	player_list_window->SetVisible(false);
+	player_list_window->SetZ(Priority_Window + 210);
 
 }
 
@@ -82,6 +76,9 @@ void MultiplayerChat::OnMapUnloaded() {
 	CloseInput();
 	overlay_window.reset();
 	input_window.reset();
+	player_list_window.reset();
+	avatar_sprites.clear();
+	chat_bubbles.clear();
 	dialogue_window.reset();
 	dialogue_queue.clear();
 }
@@ -91,6 +88,13 @@ void MultiplayerChat::Reset() {
 	overlay_entries.clear();
 	overlay_window.reset();
 	input_window.reset();
+	player_list_window.reset();
+	avatar_sprites.clear();
+	chat_bubbles.clear();
+	std::lock_guard lock(avatar_mutex);
+	avatar_bitmaps.clear();
+	avatar_downloads.clear();
+	avatar_ready.clear();
 	dialogue_window.reset();
 	dialogue_queue.clear();
 }
@@ -101,10 +105,16 @@ void MultiplayerChat::Reset() {
 
 bool MultiplayerChat::Update() {
 	auto& mp = MultiplayerState::Instance();
-	if (!mp.IsActive()) return false;
+	if (!mp.IsActive()) {
+		if (player_list_window) player_list_window->SetVisible(false);
+		chat_bubbles.clear();
+		return false;
+	}
 
 	UpdateOverlay();
 	UpdateDialogue();
+	UpdatePlayerList();
+	UpdateChatBubbles();
 
 
 	if (input_active) {
@@ -122,9 +132,8 @@ bool MultiplayerChat::Update() {
 
 	// Y = Dialogue chat (TeamParty / Chaotix only)
 	if (Input::IsRawKeyTriggered(Input::Keys::Y)) {
-		auto& net = NetManager::Instance();
-		auto mode = net.GetMode();
-		if (mode == MultiplayerMode::TeamParty || mode == MultiplayerMode::Chaotix) {
+		auto& mp = MultiplayerState::Instance();
+		if (mp.IsModeActive(MultiplayerMode::TeamParty) || mp.IsModeActive(MultiplayerMode::Chaotix)) {
 			OpenInput(true);
 			return true;
 		} else {
@@ -303,7 +312,7 @@ void MultiplayerChat::SendDialogueChat(const std::string& text) {
 // Receiving
 // ---------------------------------------------------------------------------
 
-void MultiplayerChat::OnChatMessageReceived(uint16_t /*sender_peer_id*/,
+void MultiplayerChat::OnChatMessageReceived(uint16_t sender_peer_id,
 											const std::string& sender_name,
 											const std::string& message,
 											bool is_dialogue) {
@@ -316,6 +325,7 @@ void MultiplayerChat::OnChatMessageReceived(uint16_t /*sender_peer_id*/,
 	}
 
 	std::string display_text = FilterText(message);
+	ShowChatBubble(sender_peer_id, display_text);
 
 	if (is_dialogue) {
 		// Show as RPG dialogue box
@@ -376,6 +386,234 @@ void MultiplayerChat::RefreshOverlay() {
 	}
 	overlay_window->SetText(combined);
 	overlay_window->SetVisible(true);
+}
+
+void MultiplayerChat::UpdatePlayerList() {
+	if (!player_list_window) return;
+	ProcessAvatarDownloads();
+	const bool visible = !input_active && Input::IsRawKeyPressed(Input::Keys::TAB);
+	if (!visible) {
+		player_list_window->SetVisible(false);
+		for (auto& [peer_id, sprite] : avatar_sprites) sprite->SetVisible(false);
+		return;
+	}
+
+	RefreshPlayerList();
+	player_list_window->Update();
+	player_list_window->SetVisible(true);
+}
+
+void MultiplayerChat::RefreshPlayerList() {
+	if (!player_list_window) return;
+
+	auto& net = NetManager::Instance();
+	std::string host_name = net.IsHost() ? net.GetLocalPlayerName() : std::string();
+	if (host_name.empty()) {
+		if (auto* host = net.FindPeer(1)) host_name = host->player_name;
+	}
+	if (host_name.empty()) host_name = "Player";
+
+	struct PlayerEntry {
+		uint16_t peer_id;
+		std::string name;
+		std::string discord_user_id;
+		std::string avatar_hash;
+	};
+	std::vector<PlayerEntry> entries;
+	auto local_entry = PlayerEntry{
+		net.GetLocalPeerId(), net.GetLocalPlayerName(),
+		DiscordIntegration::GetDiscordUserId(), DiscordIntegration::GetDiscordAvatarHash()};
+	if (net.IsHost()) {
+		entries.push_back(local_entry);
+		for (const auto& peer : net.GetPeers()) {
+			entries.push_back({peer.peer_id, peer.player_name, peer.discord_user_id, peer.discord_avatar_hash});
+		}
+	} else {
+		for (const auto& peer : net.GetPeers()) {
+			entries.push_back({peer.peer_id, peer.player_name, peer.discord_user_id, peer.discord_avatar_hash});
+		}
+		entries.push_back(local_entry);
+	}
+
+	std::string text = "Players\nHosted by " + host_name + "\n\n";
+	text += "Online: " + std::to_string(entries.size()) + "\n";
+	std::vector<uint16_t> player_ids;
+	for (const auto& entry : entries) {
+		text += "   " + (entry.name.empty() ? std::string("Player") : entry.name);
+		if (entry.peer_id == net.GetLocalPeerId()) text += " (You)";
+		text += "\n";
+		player_ids.push_back(entry.peer_id);
+		if (!entry.discord_user_id.empty() && !entry.avatar_hash.empty()) {
+			StartAvatarDownload(entry.discord_user_id, entry.avatar_hash);
+		}
+	}
+
+	player_list_window->SetText(text);
+	UpdateAvatarSprites(player_ids);
+}
+
+std::string MultiplayerChat::WrapBubbleText(const std::string& message) {
+	constexpr size_t MAX_LINE_LENGTH = 28;
+	std::string result;
+	size_t line_start = 0;
+	while (line_start < message.size()) {
+		const size_t newline = message.find('\n', line_start);
+		const size_t line_end = newline == std::string::npos ? message.size() : newline;
+		size_t pos = line_start;
+		while (line_end - pos > MAX_LINE_LENGTH) {
+			size_t break_at = message.rfind(' ', pos + MAX_LINE_LENGTH);
+			if (break_at < pos) break_at = pos + MAX_LINE_LENGTH;
+			result.append(message, pos, break_at - pos);
+			result += '\n';
+			pos = break_at;
+			while (pos < line_end && message[pos] == ' ') ++pos;
+		}
+		result.append(message, pos, line_end - pos);
+		if (newline != std::string::npos) result += '\n';
+		line_start = newline == std::string::npos ? message.size() : newline + 1;
+	}
+	return result;
+}
+
+void MultiplayerChat::ShowChatBubble(uint16_t peer_id, const std::string& message) {
+	if (!player_list_window || message.empty()) return;
+	const std::string wrapped = WrapBubbleText(message);
+	auto set_bubble_text = [](Window_Help& window, const std::string& text) {
+		window.SetText(text);
+		// Bitmap fonts do not support ApplyStyle size changes. Scale the
+		// rendered content so bubbles stay smaller with every game font.
+		auto source = window.GetContents();
+		auto scaled = Bitmap::Create(source->GetWidth(), source->GetHeight(), true);
+		scaled->ZoomOpacityBlit(0, 0, 0, 0, *source, source->GetRect(),
+			0.75, 0.75, Opacity::Opaque());
+		window.SetContents(scaled);
+	};
+	auto it = chat_bubbles.find(peer_id);
+	if (it != chat_bubbles.end()) {
+		set_bubble_text(*it->second.window, wrapped);
+		it->second.timer = BUBBLE_DISPLAY_FRAMES;
+		return;
+	}
+
+	const int line_count = static_cast<int>(std::count(wrapped.begin(), wrapped.end(), '\n')) + 1;
+	ChatBubble bubble;
+	bubble.window = std::make_unique<Window_Help>(0, 0, 208, 16 * line_count + 16);
+	bubble.window->SetBackOpacity(255);
+	bubble.window->SetFrameOpacity(255);
+	bubble.window->SetZ(Priority_Window + 205);
+	set_bubble_text(*bubble.window, wrapped);
+	bubble.timer = BUBBLE_DISPLAY_FRAMES;
+	chat_bubbles.emplace(peer_id, std::move(bubble));
+}
+
+void MultiplayerChat::UpdateChatBubbles() {
+	for (auto it = chat_bubbles.begin(); it != chat_bubbles.end();) {
+		Game_Character* target = nullptr;
+		if (it->first == NetManager::Instance().GetLocalPeerId()) {
+			target = Main_Data::game_player.get();
+		} else {
+			auto* remote = MultiplayerState::Instance().GetRemotePlayer(it->first);
+			if (remote && remote->IsOnCurrentMap()) target = remote;
+		}
+
+		if (!target || !target->IsVisible()) {
+			it->second.window->SetVisible(false);
+		} else {
+			const int x = std::clamp(target->GetScreenX() - it->second.window->GetWidth() / 2,
+				0, std::max(0, Player::screen_width - it->second.window->GetWidth()));
+			const int y = std::max(0, target->GetScreenY() - 32 - it->second.window->GetHeight());
+			it->second.window->SetX(x);
+			it->second.window->SetY(y);
+			it->second.window->SetVisible(true);
+			it->second.window->Update();
+		}
+
+		if (--it->second.timer <= 0) it = chat_bubbles.erase(it);
+		else ++it;
+	}
+}
+
+void MultiplayerChat::StartAvatarDownload(const std::string& user_id, const std::string& avatar_hash) {
+	const std::string key = user_id + "/" + avatar_hash;
+	{
+		std::lock_guard lock(avatar_mutex);
+		if (avatar_bitmaps.count(key) != 0 || !avatar_downloads.insert(key).second) return;
+	}
+
+	const std::string url = "https://cdn.discordapp.com/avatars/" + user_id + "/" + avatar_hash + ".png?size=32";
+	std::thread([this, key, url]() {
+		std::vector<uint8_t> data;
+		CURL* curl = curl_easy_init();
+		if (curl) {
+			curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, AvatarWriteCallback);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
+			curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+			curl_easy_setopt(curl, CURLOPT_USERAGENT, "EasyRPG-Chaos-PLUS");
+			long response_code = 0;
+			const CURLcode result = curl_easy_perform(curl);
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+			curl_easy_cleanup(curl);
+			if (result != CURLE_OK || response_code != 200) data.clear();
+		}
+
+		std::lock_guard lock(avatar_mutex);
+		if (!data.empty()) avatar_ready.push_back({key, std::move(data)});
+		else avatar_downloads.erase(key);
+	}).detach();
+}
+
+void MultiplayerChat::ProcessAvatarDownloads() {
+	std::vector<AvatarReady> ready;
+	{
+		std::lock_guard lock(avatar_mutex);
+		ready.swap(avatar_ready);
+	}
+	for (auto& result : ready) {
+		auto bitmap = Bitmap::Create(result.data.data(), static_cast<unsigned>(result.data.size()), true);
+		std::lock_guard lock(avatar_mutex);
+		if (bitmap) avatar_bitmaps[result.key] = bitmap;
+		avatar_downloads.erase(result.key);
+	}
+}
+
+void MultiplayerChat::UpdateAvatarSprites(const std::vector<uint16_t>& player_ids) {
+	for (auto& [peer_id, sprite] : avatar_sprites) sprite->SetVisible(false);
+	const int first_player_y = player_list_window->GetY() + 8 + 4 * 16;
+	const int row_height = 16;
+
+	for (size_t i = 0; i < player_ids.size(); ++i) {
+		const uint16_t peer_id = player_ids[i];
+		std::string user_id;
+		std::string avatar_hash;
+		if (peer_id == NetManager::Instance().GetLocalPeerId()) {
+			user_id = DiscordIntegration::GetDiscordUserId();
+			avatar_hash = DiscordIntegration::GetDiscordAvatarHash();
+		} else if (auto* peer = NetManager::Instance().FindPeer(peer_id)) {
+			user_id = peer->discord_user_id;
+			avatar_hash = peer->discord_avatar_hash;
+		}
+		if (user_id.empty() || avatar_hash.empty()) continue;
+
+		const std::string key = user_id + "/" + avatar_hash;
+		auto bitmap_it = avatar_bitmaps.find(key);
+		if (bitmap_it == avatar_bitmaps.end()) continue;
+
+		auto& avatar = avatar_sprites[peer_id];
+		if (!avatar) {
+			avatar = std::make_unique<Sprite>();
+			avatar->SetZ(Priority_Window + 211);
+		}
+		avatar->SetBitmap(bitmap_it->second);
+		avatar->SetSrcRect(bitmap_it->second->GetRect());
+		avatar->SetX(player_list_window->GetX() + 8);
+		avatar->SetY(first_player_y + static_cast<int>(i) * row_height);
+		avatar->SetZoomX(16.0 / std::max(1, bitmap_it->second->GetWidth()));
+		avatar->SetZoomY(16.0 / std::max(1, bitmap_it->second->GetHeight()));
+		avatar->SetVisible(true);
+	}
 }
 
 // ---------------------------------------------------------------------------

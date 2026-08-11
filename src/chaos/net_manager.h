@@ -26,6 +26,8 @@ namespace Chaos {
 struct PeerInfo {
 	uint16_t peer_id = 0;
 	std::string player_name;
+	std::string discord_user_id;
+	std::string discord_avatar_hash;
 	ENetPeer* peer = nullptr;
 	bool is_god = false;  // For God Mode
 };

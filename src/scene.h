@@ -66,6 +66,7 @@ public:
 		ModMenu,
 		SkinSelect,
 		GameModeSelect,
+		CustomModeSetup,
 		AICharacters,
 		Editor,
 		RpgStore,

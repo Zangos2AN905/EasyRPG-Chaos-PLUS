@@ -6,6 +6,7 @@
 #include "output.h"
 #include "player.h"
 #include "filefinder.h"
+#include "chaos/discord_integration.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -234,6 +235,8 @@ void NetManager::Update() {
 				// Send game-level Join via relay
 				PacketWriter join(PacketType::Join);
 				join.write(local_player_name);
+				join.write(DiscordIntegration::GetDiscordUserId());
+				join.write(DiscordIntegration::GetDiscordAvatarHash());
 				relay->ForwardToHost(join.data(), join.size());
 			} else {
 				Output::Warning("Multiplayer: Relay join failed: {}", relay->GetJoinFailReason());
@@ -286,6 +289,12 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 
 			if (!pi && ptype == PacketType::Join) {
 				std::string name = reader.readString();
+				std::string discord_user_id = reader.readString();
+				std::string discord_avatar_hash = reader.readString();
+				if (!reader.ok()) {
+					enet_packet_destroy(event.packet);
+					break;
+				}
 
 				// Check max players
 				auto& props = GetModeProperties(current_mode);
@@ -305,6 +314,8 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 				PeerInfo info;
 				info.peer_id = new_id;
 				info.player_name = name;
+				info.discord_user_id = discord_user_id;
+				info.discord_avatar_hash = discord_avatar_hash;
 				info.peer = event.peer;
 				peers.push_back(info);
 
@@ -313,6 +324,8 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 				accept.write(new_id);
 				accept.write(static_cast<uint8_t>(current_mode));
 				accept.write(local_player_name);  // Host name
+				accept.write(DiscordIntegration::GetDiscordUserId());
+				accept.write(DiscordIntegration::GetDiscordAvatarHash());
 				accept.write(Player::game_title.empty() ? std::string("Unknown Game") : Player::game_title);  // Game name
 				// Send existing peer list
 				accept.write(static_cast<uint16_t>(peers.size() - 1));  // Exclude the new peer
@@ -320,6 +333,8 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 					if (p.peer_id != new_id) {
 						accept.write(p.peer_id);
 						accept.write(p.player_name);
+						accept.write(p.discord_user_id);
+						accept.write(p.discord_avatar_hash);
 					}
 				}
 				ENetPacket* apkt = enet_packet_create(accept.data(), accept.size(),
@@ -330,6 +345,8 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 				PacketWriter joined(PacketType::PlayerJoined);
 				joined.write(new_id);
 				joined.write(name);
+				joined.write(discord_user_id);
+				joined.write(discord_avatar_hash);
 				for (auto& p : peers) {
 					if (p.peer_id != new_id && p.peer) {
 						ENetPacket* jpkt = enet_packet_create(joined.data(), joined.size(),
@@ -411,6 +428,8 @@ void NetManager::HandleClientEvent(ENetEvent& event) {
 			// Send Join request
 			PacketWriter join(PacketType::Join);
 			join.write(local_player_name);
+			join.write(DiscordIntegration::GetDiscordUserId());
+			join.write(DiscordIntegration::GetDiscordAvatarHash());
 			ENetPacket* pkt = enet_packet_create(join.data(), join.size(),
 				ENET_PACKET_FLAG_RELIABLE);
 			enet_peer_send(server_peer, CHANNEL_RELIABLE, pkt);
@@ -435,12 +454,16 @@ void NetManager::HandleClientEvent(ENetEvent& event) {
 					break;
 				}
 				std::string host_name = reader.readString();
+				std::string host_discord_user_id = reader.readString();
+				std::string host_discord_avatar_hash = reader.readString();
 				host_game_name = reader.readString();
 
 				// Add host as peer 1
 				PeerInfo host_info;
 				host_info.peer_id = 1;
 				host_info.player_name = host_name;
+				host_info.discord_user_id = host_discord_user_id;
+				host_info.discord_avatar_hash = host_discord_avatar_hash;
 				host_info.peer = nullptr;
 				peers.push_back(host_info);
 
@@ -456,6 +479,8 @@ void NetManager::HandleClientEvent(ENetEvent& event) {
 				PeerInfo pi;
 				pi.peer_id = reader.readU16();
 				pi.player_name = reader.readString();
+				pi.discord_user_id = reader.readString();
+				pi.discord_avatar_hash = reader.readString();
 				pi.peer = nullptr;
 				peers.push_back(pi);
 			}
@@ -473,6 +498,8 @@ void NetManager::HandleClientEvent(ENetEvent& event) {
 				PeerInfo pi;
 				pi.peer_id = reader.readU16();
 				pi.player_name = reader.readString();
+				pi.discord_user_id = reader.readString();
+				pi.discord_avatar_hash = reader.readString();
 				pi.peer = nullptr;
 				peers.push_back(pi);
 				Output::Debug("Multiplayer: Player '{}' joined (id={})", pi.player_name, pi.peer_id);
@@ -757,6 +784,8 @@ void NetManager::HandleRelayForward(uint16_t source_id, const uint8_t* data, siz
 		if (!pi && ptype == PacketType::Join) {
 			// New player joining via relay
 			std::string name = reader.readString();
+			std::string discord_user_id = reader.readString();
+			std::string discord_avatar_hash = reader.readString();
 
 			auto& props = GetModeProperties(current_mode);
 			if (props.max_players > 0 &&
@@ -771,6 +800,8 @@ void NetManager::HandleRelayForward(uint16_t source_id, const uint8_t* data, siz
 			PeerInfo info;
 			info.peer_id = source_id;
 			info.player_name = name;
+			info.discord_user_id = discord_user_id;
+			info.discord_avatar_hash = discord_avatar_hash;
 			info.peer = nullptr;  // No ENet peer for relay connections
 			peers.push_back(info);
 
@@ -784,12 +815,16 @@ void NetManager::HandleRelayForward(uint16_t source_id, const uint8_t* data, siz
 			accept.write(source_id);
 			accept.write(static_cast<uint8_t>(current_mode));
 			accept.write(local_player_name);
+			accept.write(DiscordIntegration::GetDiscordUserId());
+			accept.write(DiscordIntegration::GetDiscordAvatarHash());
 			accept.write(Player::game_title.empty() ? std::string("Unknown Game") : Player::game_title);
 			accept.write(static_cast<uint16_t>(peers.size() - 1));
 			for (auto& p : peers) {
 				if (p.peer_id != source_id) {
-					accept.write(p.peer_id);
-					accept.write(p.player_name);
+				accept.write(p.peer_id);
+				accept.write(p.player_name);
+				accept.write(p.discord_user_id);
+				accept.write(p.discord_avatar_hash);
 				}
 			}
 			relay->ForwardTo(source_id, accept.data(), accept.size());
@@ -798,6 +833,8 @@ void NetManager::HandleRelayForward(uint16_t source_id, const uint8_t* data, siz
 			PacketWriter joined(PacketType::PlayerJoined);
 			joined.write(source_id);
 			joined.write(name);
+			joined.write(discord_user_id);
+			joined.write(discord_avatar_hash);
 			for (auto& p : peers) {
 				if (p.peer_id != source_id) {
 					relay->ForwardTo(p.peer_id, joined.data(), joined.size());
@@ -843,11 +880,15 @@ void NetManager::HandleRelayForward(uint16_t source_id, const uint8_t* data, siz
 				return;
 			}
 			std::string host_name = reader.readString();
+			std::string host_discord_user_id = reader.readString();
+			std::string host_discord_avatar_hash = reader.readString();
 			host_game_name = reader.readString();
 
 			PeerInfo host_info;
 			host_info.peer_id = 1;
 			host_info.player_name = host_name;
+			host_info.discord_user_id = host_discord_user_id;
+			host_info.discord_avatar_hash = host_discord_avatar_hash;
 			host_info.peer = nullptr;
 			peers.push_back(host_info);
 
@@ -861,6 +902,8 @@ void NetManager::HandleRelayForward(uint16_t source_id, const uint8_t* data, siz
 				PeerInfo pi;
 				pi.peer_id = reader.readU16();
 				pi.player_name = reader.readString();
+				pi.discord_user_id = reader.readString();
+				pi.discord_avatar_hash = reader.readString();
 				pi.peer = nullptr;
 				peers.push_back(pi);
 			}
@@ -876,6 +919,8 @@ void NetManager::HandleRelayForward(uint16_t source_id, const uint8_t* data, siz
 			PeerInfo pi;
 			pi.peer_id = reader.readU16();
 			pi.player_name = reader.readString();
+			pi.discord_user_id = reader.readString();
+			pi.discord_avatar_hash = reader.readString();
 			pi.peer = nullptr;
 			peers.push_back(pi);
 			Output::Debug("Multiplayer: Relay player '{}' joined (id={})", pi.player_name, pi.peer_id);

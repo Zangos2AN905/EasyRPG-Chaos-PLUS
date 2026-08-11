@@ -536,6 +536,10 @@ add_library(${PROJECT_NAME} OBJECT
 	src/chaos/drawable_rubber_band.h
 	src/chaos/drawable_darkness_overlay.cpp
 	src/chaos/drawable_darkness_overlay.h
+	src/chaos/custom_mode.cpp
+	src/chaos/custom_mode.h
+	src/chaos/scene_custom_mode_setup.cpp
+	src/chaos/scene_custom_mode_setup.h
 	src/chaos/scene_multiplayer_menu.cpp
 	src/chaos/scene_multiplayer_menu.h
 	src/chaos/scene_multiplayer_lobby.cpp

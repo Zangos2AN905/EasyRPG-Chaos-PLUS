@@ -338,11 +338,14 @@ void Player::UpdateInput() {
 		DisplayUi->ToggleZoom();
 	}
 	float speed = 1.0;
-	if (Input::IsSystemPressed(Input::FAST_FORWARD_A)) {
-		speed = Input::GetInputSource()->GetConfig().speed_modifier_a.Get();
-	}
-	if (Input::IsSystemPressed(Input::FAST_FORWARD_B)) {
-		speed = Input::GetInputSource()->GetConfig().speed_modifier_b.Get();
+	// Disable fast forwarding in multiplayer as a basic anti-cheat measure.
+	if (!Chaos::MultiplayerState::Instance().IsActive()) {
+		if (Input::IsSystemPressed(Input::FAST_FORWARD_A)) {
+			speed = Input::GetInputSource()->GetConfig().speed_modifier_a.Get();
+		}
+		if (Input::IsSystemPressed(Input::FAST_FORWARD_B)) {
+			speed = Input::GetInputSource()->GetConfig().speed_modifier_b.Get();
+		}
 	}
 	Game_Clock::SetGameSpeedFactor(speed);
 
