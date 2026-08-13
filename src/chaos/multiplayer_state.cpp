@@ -4,6 +4,7 @@
 
 #include "chaos/multiplayer_state.h"
 #include "chaos/multiplayer_chat.h"
+#include "chaos/multiplayer_commands.h"
 #include "chaos/custom_mode.h"
 #include "chaos/net_manager.h"
 #include "chaos/net_packet.h"
@@ -38,6 +39,7 @@
 #include "spriteset_map.h"
 #include "sprite_character.h"
 #include "window_help.h"
+#include <lcf/reader_util.h>
 #include <algorithm>
 #include <cmath>
 #include <fmt/format.h>
@@ -54,6 +56,7 @@ MultiplayerState& MultiplayerState::Instance() {
 void MultiplayerState::StartMultiplayer() {
 	if (active) return;
 	active = true;
+	admin_peers.clear();
 	SetupCallbacks();
 	if (NetManager::Instance().GetMode() == MultiplayerMode::Custom) {
 		CustomMode::Instance().Start();
@@ -81,6 +84,17 @@ bool MultiplayerState::IsBattleSyncMode() const {
 	return IsModeActive(MultiplayerMode::Single) ||
 	       IsModeActive(MultiplayerMode::TeamParty) ||
 	       IsModeActive(MultiplayerMode::Chaotix);
+}
+
+bool MultiplayerState::IsAdmin(uint16_t peer_id) const {
+	return peer_id == 1 || admin_peers.count(peer_id) != 0;
+}
+
+void MultiplayerState::SetAdmin(uint16_t peer_id, bool value) {
+	if (peer_id == 1) return;
+	if (value) admin_peers.insert(peer_id);
+	else admin_peers.erase(peer_id);
+	Output::Debug("Multiplayer: Peer {} {} admin", peer_id, value ? "ranked as" : "demoted from");
 }
 
 void MultiplayerState::StopMultiplayer() {
@@ -119,6 +133,7 @@ void MultiplayerState::StopMultiplayer() {
 		}
 	}
 	remote_players.clear();
+	admin_peers.clear();
 	last_switches.clear();
 	last_variables.clear();
 	 applied_event_commands.clear();
@@ -645,6 +660,9 @@ void MultiplayerState::OnPacketReceived(uint16_t sender_id, const uint8_t* data,
 		case PacketType::ChatMessage:
 			HandleChatMessage(sender_id, data, len);
 			break;
+		case PacketType::MultiplayerCommand:
+			HandleMultiplayerCommand(sender_id, data, len);
+			break;
 		case PacketType::VoiceData:
 			break;
 		case PacketType::SkinSet:
@@ -1104,6 +1122,17 @@ void MultiplayerState::EnterSpectatorMode() {
 	Output::Debug("Multiplayer: Entered spectator mode, watching peer {}", spectate_target_id);
 }
 
+void MultiplayerState::SpectatePlayer(uint16_t peer_id) {
+	if (peer_id == NetManager::Instance().GetLocalPeerId() || !GetRemotePlayer(peer_id)) return;
+	if (!spectating) EnterSpectatorMode();
+	if (!spectating) return;
+	spectate_target_id = peer_id;
+	if (spectator_window) {
+		spectator_window->SetText(fmt::format("Spectating: {} (Left/Right to switch)",
+			GetRemotePlayer(peer_id)->GetPlayerName()));
+	}
+}
+
 void MultiplayerState::ExitSpectatorMode() {
 	if (!spectating) return;
 	spectating = false;
@@ -1206,6 +1235,27 @@ void MultiplayerState::UpdateSpectator() {
 }
 
 // ---- Battle sync ----
+
+void MultiplayerState::StartCommandBattle(int troop_id, bool announce_network) {
+	if (!active || in_battle || spectating || !Main_Data::game_player || !Scene::instance) return;
+	if (!lcf::ReaderUtil::GetElement(lcf::Data::troops, troop_id)) return;
+
+	BattleArgs args;
+	args.troop_id = troop_id;
+	args.first_strike = false;
+	args.allow_escape = true;
+	args.formation = lcf::rpg::System::BattleFormation_terrain;
+	args.condition = lcf::rpg::System::BattleCondition_none;
+	Game_Map::SetupBattle(args);
+	if (announce_network) {
+		OnBattleStarted(args.troop_id, args.terrain_id, args.first_strike, args.allow_escape);
+	}
+	args.on_battle_end = [](BattleResult result) {
+		MultiplayerState::Instance().OnBattleEnded(static_cast<int>(result));
+	};
+	Scene::instance->SetRequestedScene(Scene_Battle::Create(std::move(args)));
+	Output::Debug("Multiplayer: Command started battle, troop={}", troop_id);
+}
 
 void MultiplayerState::OnBattleStarted(int troop_id, int terrain_id, bool first_strike, bool allow_escape) {
 	auto& net = NetManager::Instance();
@@ -2724,6 +2774,10 @@ void MultiplayerState::HandleChatMessage(uint16_t sender_id, const uint8_t* data
 
 	MultiplayerChat::Instance().OnChatMessageReceived(
 		message_sender_id, sender_name, text, chat_type == 1);
+}
+
+void MultiplayerState::HandleMultiplayerCommand(uint16_t sender_id, const uint8_t* data, size_t len) {
+	MultiplayerCommands::HandlePacket(sender_id, data, len);
 }
 
 void MultiplayerState::InitAsymMode() {

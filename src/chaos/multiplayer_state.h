@@ -141,6 +141,12 @@ public:
 	void AssignRandomGod();
 	void SendGodCommand(uint8_t cmd_type, const std::vector<int32_t>& args);
 
+	/** Multiplayer chat-command permissions and dispatch. */
+	bool IsAdmin(uint16_t peer_id) const;
+	void SetAdmin(uint16_t peer_id, bool value);
+	void SpectatePlayer(uint16_t peer_id);
+	void StartCommandBattle(int troop_id, bool announce_network);
+
 	/** Horror Mode */
 	bool IsHorrorMode() const;
 	int GetBatteryPercent() const { return horror_battery_percent; }
@@ -209,6 +215,7 @@ private:
 	void HandleAsymHunterAssign(const uint8_t* data, size_t len);
 	void HandleAsymKill(const uint8_t* data, size_t len);
 	void HandleChatMessage(uint16_t sender_id, const uint8_t* data, size_t len);
+	void HandleMultiplayerCommand(uint16_t sender_id, const uint8_t* data, size_t len);
 	void HandleSkinSet(uint16_t sender_id, const uint8_t* data, size_t len);
 
 	// Sync functions
@@ -252,6 +259,7 @@ private:
 
 	// Remote players indexed by peer_id
 	std::map<uint16_t, std::unique_ptr<Game_RemotePlayer>> remote_players;
+	std::set<uint16_t> admin_peers;
 
 	// Spectator state
 	bool spectating = false;

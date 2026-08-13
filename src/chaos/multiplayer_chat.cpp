@@ -4,6 +4,7 @@
 
 #include "chaos/multiplayer_chat.h"
 #include "chaos/multiplayer_state.h"
+#include "chaos/multiplayer_commands.h"
 #include "chaos/net_manager.h"
 #include "chaos/net_packet.h"
 #include "chaos/multiplayer_mode.h"
@@ -283,12 +284,17 @@ void MultiplayerChat::UpdateInput() {
 void MultiplayerChat::SendNormalChat(const std::string& text) {
 	auto& net = NetManager::Instance();
 	if (!net.IsConnected()) return;
+	if (MultiplayerCommands::Submit(text)) return;
 
 	PacketWriter pw(PacketType::ChatMessage);
 	pw.write(net.GetLocalPeerId());
 	pw.write(static_cast<uint8_t>(0)); // 0 = normal chat
 	pw.write(text);
-	net.Broadcast(pw, true);
+	if (net.IsHost()) {
+		net.Broadcast(pw, true);
+	} else {
+		net.SendToServer(pw, true);
+	}
 
 	// Show locally too
 	std::string local_name = net.GetLocalPlayerName();
@@ -298,12 +304,17 @@ void MultiplayerChat::SendNormalChat(const std::string& text) {
 void MultiplayerChat::SendDialogueChat(const std::string& text) {
 	auto& net = NetManager::Instance();
 	if (!net.IsConnected()) return;
+	if (MultiplayerCommands::Submit(text)) return;
 
 	PacketWriter pw(PacketType::ChatMessage);
 	pw.write(net.GetLocalPeerId());
 	pw.write(static_cast<uint8_t>(1)); // 1 = dialogue chat
 	pw.write(text);
-	net.Broadcast(pw, true);
+	if (net.IsHost()) {
+		net.Broadcast(pw, true);
+	} else {
+		net.SendToServer(pw, true);
+	}
 
 	// Show locally too
 	std::string local_name = net.GetLocalPlayerName();

@@ -86,6 +86,7 @@
 #include "chaos/discord_integration.h"
 #include "chaos/multiplayer_state.h"
 #include "chaos/net_manager.h"
+#include "chaos/scene_multiplayer_menu.h"
 #if defined(PLAYER_WITH_IMGUI)
 #include "editor/scene_editor.h"
 #endif
@@ -283,7 +284,11 @@ void Player::MainLoop() {
 		Chaos::MultiplayerState::Instance().ClearHostDisconnected();
 		Chaos::MultiplayerState::Instance().StopMultiplayer();
 		Chaos::NetManager::Instance().Disconnect();
-		Scene::ReturnToTitleScene();
+		if (Scene::Find(Scene::MultiplayerMenu)) {
+			Scene::PopUntil(Scene::MultiplayerMenu);
+		} else if (!Scene::ReturnToTitleScene()) {
+			Scene::Push(std::make_shared<Chaos::Scene_MultiplayerMenu>(), true);
+		}
 	}
 
 	if (!Transition::instance().IsActive() && Scene::instance->type == Scene::Null) {

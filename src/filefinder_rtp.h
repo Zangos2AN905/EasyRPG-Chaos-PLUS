@@ -43,6 +43,9 @@ public:
 	 */
 	 Filesystem_Stream::InputStream Lookup(std::string_view dir, std::string_view name, const Span<const std::string_view> exts) const;
 
+	/** RTP roots discovered during initialization, for asset browsers. */
+	const std::vector<FilesystemView>& GetSearchPaths() const { return search_paths; }
+
 private:
 	void AddPath(std::string_view p);
 	void ReadRegistry(std::string_view company, std::string_view product, std::string_view key);

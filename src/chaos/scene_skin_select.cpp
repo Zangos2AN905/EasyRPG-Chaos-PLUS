@@ -3,6 +3,7 @@
  */
 
 #include "chaos/scene_skin_select.h"
+#include "filefinder_rtp.h"
 #include "chaos/multiplayer_state.h"
 #include "bitmap.h"
 #include "cache.h"
@@ -156,6 +157,17 @@ void Scene_SkinSelect::ScanCharsets() {
 					auto sibling_path = dir_entry.path().u8string();
 					AddCharsetsFromGamePath(sibling_path, dir_entry.path().filename().u8string(), charset_entries, seen_keys);
 				}
+			}
+		}
+	}
+
+	// RTP charsets are valid RPG Maker assets too. Expose them in the skin
+	// picker so players can use the standard RTP character sheets.
+	if (Main_Data::filefinder_rtp) {
+		for (const auto& rtp_fs : Main_Data::filefinder_rtp->GetSearchPaths()) {
+			const std::string rtp_path = rtp_fs.GetFullPath();
+			if (!rtp_path.empty()) {
+				AddCharsetsFromGamePath(rtp_path, "RTP: " + PathLeafName(rtp_path), charset_entries, seen_keys);
 			}
 		}
 	}

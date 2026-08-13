@@ -530,6 +530,8 @@ add_library(${PROJECT_NAME} OBJECT
 	src/chaos/gamemode_underwater_mode.h
 	src/chaos/multiplayer_chat.cpp
 	src/chaos/multiplayer_chat.h
+	src/chaos/multiplayer_commands.cpp
+	src/chaos/multiplayer_commands.h
 	src/chaos/window_chat_dialogue.cpp
 	src/chaos/window_chat_dialogue.h
 	src/chaos/drawable_rubber_band.cpp

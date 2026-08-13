@@ -90,6 +90,7 @@ enum class PacketType : uint8_t {
 	// Custom mode
 	CustomModeSettings, // Host -> All: custom mode mix/objective/toggles
 	ChaosEvent,         // Host -> All: random chaos event to apply
+	MultiplayerCommand, // Client -> Host -> All: validated admin/player command
 };
 
 // Simple packet buffer for serialization
