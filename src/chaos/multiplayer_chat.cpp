@@ -65,8 +65,10 @@ void MultiplayerChat::OnMapLoaded() {
 												 Player::screen_width, 32);
 	input_window->SetVisible(false);
 	input_window->SetZ(Priority_Window + 200);
+	const int player_list_width = std::min(360, std::max(16, Player::screen_width - 16));
 	player_list_window = std::make_unique<Window_Help>(
-		Player::screen_width / 2 - 180, 32, 360, Player::screen_height - 64);
+		(Player::screen_width - player_list_width) / 2, 32,
+		player_list_width, Player::screen_height - 64);
 	player_list_window->SetVisible(false);
 	player_list_window->SetZ(Priority_Window + 210);
 

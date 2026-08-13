@@ -215,19 +215,32 @@ void Transition::Draw(Bitmap& dst) {
 		break;
 	case TransitionRandomBlocks:
 	case TransitionRandomBlocksDown:
-	case TransitionRandomBlocksUp:
-		blocks_to_print = random_blocks.size() * (current_frame + 1) / tf_off;
+	case TransitionRandomBlocksUp: {
+		if (tf_off <= 0 || random_blocks.empty()) {
+			dst.Blit(0, 0, *screen2, screen2->GetRect(), Opacity::Opaque());
+			break;
+		}
+		blocks_to_print = static_cast<uint32_t>(std::min<size_t>(
+			random_blocks.size(),
+			static_cast<size_t>(std::max(0, current_frame + 1)) * random_blocks.size() / tf_off));
 
-		for (uint32_t i = current_blocks_print; i < blocks_to_print; i++) {
-			random_block_transition->Blit(random_blocks[i] % (w / size_random_blocks) * size_random_blocks,
-				random_blocks[i] / (w / size_random_blocks) * size_random_blocks, *screen2,
-				Rect(random_blocks[i] % (w / size_random_blocks) * size_random_blocks, random_blocks[i] / (w / size_random_blocks) * size_random_blocks,
+		const uint32_t first_block = std::min(current_blocks_print,
+			static_cast<uint32_t>(random_blocks.size()));
+		const uint32_t blocks_end = std::min(blocks_to_print,
+			static_cast<uint32_t>(random_blocks.size()));
+		const int blocks_per_row = std::max(1, w / static_cast<int>(size_random_blocks));
+
+		for (uint32_t i = first_block; i < blocks_end; i++) {
+			random_block_transition->Blit(random_blocks[i] % blocks_per_row * size_random_blocks,
+				random_blocks[i] / blocks_per_row * size_random_blocks, *screen2,
+				Rect(random_blocks[i] % blocks_per_row * size_random_blocks, random_blocks[i] / blocks_per_row * size_random_blocks,
 					size_random_blocks, size_random_blocks), Opacity::Opaque());
 		}
 		dst.Blit(0, 0, *screen1, screen1->GetRect(), Opacity::Opaque());
 		dst.Blit(0, 0, *random_block_transition, random_block_transition->GetRect(), Opacity::Opaque());
-		current_blocks_print = blocks_to_print;
+		current_blocks_print = blocks_end;
 		break;
+	}
 	case TransitionBlindOpen:
 		for (int i = 0; i < h / 8; i++) {
 			dst.Blit(0, i * 8, *screen1, Rect(0, i * 8, w, 8 - (current_frame + 5) / 5), 255);

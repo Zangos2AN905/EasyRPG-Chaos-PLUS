@@ -864,7 +864,8 @@ bool Game_Map::CheckOrMakeWayEx(const Game_Character& self,
 		// we want to move, flag it as "self conflicting" for use later.
 		if (self.GetLayer() == lcf::rpg::EventPage::Layers_below && self.GetTileId() != 0) {
 			int tile_id = self.GetTileId();
-			if ((passages_up[tile_id] & bit_from) == 0) {
+			if (tile_id < 0 || tile_id >= static_cast<int>(passages_up.size()) ||
+				(passages_up[tile_id] & bit_from) == 0) {
 				self_conflict = true;
 			}
 		}
@@ -979,8 +980,11 @@ bool Game_Map::CanLandAirship(int x, int y) {
 		return false;
 	}
 
+	if (!map || tile_index < 0 || tile_index >= static_cast<int>(map->upper_layer.size())) return false;
 	int tile_id = map->upper_layer[tile_index] - BLOCK_F;
+	if (tile_id < 0 || tile_id >= static_cast<int>(map_info.upper_tiles.size())) return false;
 	tile_id = map_info.upper_tiles[tile_id];
+	if (tile_id < 0 || tile_id >= static_cast<int>(passages_up.size())) return false;
 
 	return (passages_up[tile_id] & bit) != 0;
 }
@@ -1010,16 +1014,22 @@ bool Game_Map::CanDisembarkShip(Game_Player& player, int x, int y) {
 }
 
 bool Game_Map::IsPassableLowerTile(int bit, int tile_index) {
+	if (!map || tile_index < 0 || tile_index >= static_cast<int>(map->lower_layer.size())) {
+		return false;
+	}
+
 	int tile_raw_id = map->lower_layer[tile_index];
 	int tile_id = 0;
 
 	if (tile_raw_id >= BLOCK_E) {
 		tile_id = tile_raw_id - BLOCK_E;
+		if (tile_id < 0 || tile_id >= static_cast<int>(map_info.lower_tiles.size())) return false;
 		tile_id = map_info.lower_tiles[tile_id] + BLOCK_E_INDEX;
 
 	} else if (tile_raw_id >= BLOCK_D) {
 		tile_id = (tile_raw_id - BLOCK_D) / BLOCK_D_STRIDE + BLOCK_D_INDEX;
 		int autotile_id = (tile_raw_id - BLOCK_D) % BLOCK_D_STRIDE;
+		if (tile_id < 0 || tile_id >= static_cast<int>(passages_down.size())) return false;
 
 		if (((passages_down[tile_id] & Passable::Wall) != 0) && (
 				(autotile_id >= 20 && autotile_id <= 23) ||
@@ -1035,6 +1045,7 @@ bool Game_Map::IsPassableLowerTile(int bit, int tile_index) {
 		tile_id = tile_raw_id / BLOCK_B_STRIDE;
 	}
 
+	if (tile_id < 0 || tile_id >= static_cast<int>(passages_down.size())) return false;
 	return (passages_down[tile_id] & bit) != 0;
 }
 
@@ -1090,6 +1101,7 @@ bool Game_Map::IsPassableTile(
 		// If there was a below tile event, and the tile is not above
 		// Override the chipset with event tile behavior.
 		if (event_tile_id > 0
+				&& event_tile_id < static_cast<int>(passages_up.size())
 				&& ((passages_up[event_tile_id] & Passable::Above) == 0)) {
 			switch (vehicle_type) {
 				case Game_Vehicle::None:
@@ -1105,8 +1117,11 @@ bool Game_Map::IsPassableTile(
 
 	if (check_map_geometry) {
 		int tile_index = x + y * GetTilesX();
+		if (!map || tile_index < 0 || tile_index >= static_cast<int>(map->upper_layer.size())) return false;
 		int tile_id = map->upper_layer[tile_index] - BLOCK_F;
+		if (tile_id < 0 || tile_id >= static_cast<int>(map_info.upper_tiles.size())) return false;
 		tile_id = map_info.upper_tiles[tile_id];
+		if (tile_id < 0 || tile_id >= static_cast<int>(passages_up.size())) return false;
 
 		if (vehicle_type == Game_Vehicle::Boat || vehicle_type == Game_Vehicle::Ship) {
 			if ((passages_up[tile_id] & Passable::Above) == 0)
@@ -1140,9 +1155,13 @@ int Game_Map::GetBushDepth(int x, int y) {
 bool Game_Map::IsCounter(int x, int y) {
 	if (!Game_Map::IsValid(x, y)) return false;
 
-	int const tile_id = map->upper_layer[x + y * GetTilesX()];
+	const auto tile_index = static_cast<size_t>(x + y * GetTilesX());
+	if (tile_index >= map->upper_layer.size()) return false;
+	int const tile_id = map->upper_layer[tile_index];
 	if (tile_id < BLOCK_F) return false;
+	if (tile_id - BLOCK_F >= static_cast<int>(map_info.upper_tiles.size())) return false;
 	int const index = map_info.upper_tiles[tile_id - BLOCK_F];
+	if (index < 0 || index >= static_cast<int>(passages_up.size())) return false;
 	return !!(passages_up[index] & Passable::Counter);
 }
 
@@ -1172,16 +1191,20 @@ int Game_Map::GetTerrainTag(int x, int y) {
 	unsigned chip_index = 0;
 
 	if (Game_Map::IsValid(x, y)) {
-		const auto chip_id = map->lower_layer[x + y * GetTilesX()];
+		const auto tile_index = static_cast<size_t>(x + y * GetTilesX());
+		if (tile_index >= map->lower_layer.size()) return 1;
+		const auto chip_id = map->lower_layer[tile_index];
 		chip_index = ChipIdToIndex(chip_id);
 
 		// Apply tile substitution
 		if (chip_index >= BLOCK_E_INDEX && chip_index < NUM_LOWER_TILES) {
-			chip_index = map_info.lower_tiles[chip_index - BLOCK_E_INDEX] + BLOCK_E_INDEX;
+			const auto substitution_index = chip_index - BLOCK_E_INDEX;
+			if (substitution_index >= map_info.lower_tiles.size()) return 1;
+			chip_index = map_info.lower_tiles[substitution_index] + BLOCK_E_INDEX;
 		}
 	}
 
-	assert(chip_index < terrain_data.size());
+	if (chip_index >= terrain_data.size()) return 1;
 
 	return terrain_data[chip_index];
 }

@@ -333,7 +333,9 @@ void TilemapLayer::Draw(Bitmap& dst, uint8_t z_order, int render_ox, int render_
 					bool allow_fast_blit = (tile.z == TileBelow);
 
 					if (tile.ID >= BLOCK_E && tile.ID < BLOCK_E + BLOCK_E_TILES) {
-						int id = substitutions[tile.ID - BLOCK_E];
+						const int substitution_index = tile.ID - BLOCK_E;
+						if (substitution_index < 0 || substitution_index >= static_cast<int>(substitutions.size())) continue;
+						int id = substitutions[substitution_index];
 						// If Block E
 
 						int row, col;
@@ -389,7 +391,9 @@ void TilemapLayer::Draw(Bitmap& dst, uint8_t z_order, int render_ox, int render_
 
 					// Check that block F is being drawn
 					if (tile.ID >= BLOCK_F && tile.ID < BLOCK_F + BLOCK_F_TILES) {
-						int id = substitutions[tile.ID - BLOCK_F];
+						const int substitution_index = tile.ID - BLOCK_F;
+						if (substitution_index < 0 || substitution_index >= static_cast<int>(substitutions.size())) continue;
+						int id = substitutions[substitution_index];
 						int row, col;
 
 						// Get the tile coordinates from chipset
@@ -416,12 +420,19 @@ TilemapLayer::TileXY TilemapLayer::GetCachedAutotileAB(short ID, short animID) {
 	short block = ID / 1000;
 	short b_subtile = (ID - block * 1000) / 50;
 	short a_subtile = ID - block * 1000 - b_subtile * 50;
+	if (animID < 0 || animID >= 3 || block < 0 || block >= 3 ||
+		b_subtile < 0 || b_subtile >= 16 || a_subtile < 0 || a_subtile >= 47) {
+		return {};
+	}
 	return autotiles_ab[animID][block][b_subtile][a_subtile];
 }
 
 TilemapLayer::TileXY TilemapLayer::GetCachedAutotileD(short ID) {
 	short block = (ID - 4000) / 50;
 	short subtile = ID - 4000 - block * 50;
+	if (block < 0 || block >= 12 || subtile < 0 || subtile >= 50) {
+		return {};
+	}
 	return autotiles_d[block][subtile];
 }
 
@@ -429,7 +440,8 @@ void TilemapLayer::CreateTileCache(const std::vector<short>& nmap_data) {
 	data_cache_vec.resize(width * height);
 	for (int x = 0; x < width; x++) {
 		for (int y = 0; y < height; y++) {
-			auto tile_id = nmap_data[x + y * width];
+			const auto map_index = static_cast<size_t>(x + y * width);
+			auto tile_id = map_index < nmap_data.size() ? nmap_data[map_index] : 0;
 			CreateTileCacheAt(x, y, tile_id);
 		}
 	}
@@ -443,17 +455,39 @@ void TilemapLayer::CreateTileCacheAt(int x, int y, int tile_id) {
 	// Calculate the tile Z
 	if (!passable.empty()) {
 		if (tile.ID >= BLOCK_F) { // Upper layer
-			if ((passable[substitutions[tile.ID - BLOCK_F]] & Passable::Above) != 0)
+			const int substitution_index = tile.ID - BLOCK_F;
+			if (substitution_index < 0 || substitution_index >= static_cast<int>(substitutions.size())) {
+				GetDataCache(x, y) = tile;
+				return;
+			}
+			const int chip_index = substitutions[substitution_index];
+			if (chip_index < 0 || chip_index >= static_cast<int>(passable.size())) {
+				GetDataCache(x, y) = tile;
+				return;
+			}
+			if ((passable[chip_index] & Passable::Above) != 0)
 				tile.z = TileAbove + 1; // Upper sublayer
 			else
 				tile.z = TileBelow + 1; // Lower sublayer
 
 		} else { // Lower layer
-			int chip_index =
-					tile.ID >= BLOCK_E ? substitutions[tile.ID - BLOCK_E] + 18 :
-					tile.ID >= BLOCK_D ? (tile.ID - BLOCK_D) / 50 + 6 :
+			int chip_index = 0;
+			if (tile.ID >= BLOCK_E) {
+				const int substitution_index = tile.ID - BLOCK_E;
+				if (substitution_index < 0 || substitution_index >= static_cast<int>(substitutions.size())) {
+					GetDataCache(x, y) = tile;
+					return;
+				}
+				chip_index = substitutions[substitution_index] + 18;
+			} else {
+				chip_index = tile.ID >= BLOCK_D ? (tile.ID - BLOCK_D) / 50 + 6 :
 					tile.ID >= BLOCK_C ? (tile.ID - BLOCK_C) / 50 + 3 :
 					tile.ID / 1000;
+			}
+			if (chip_index < 0 || chip_index >= static_cast<int>(passable.size())) {
+				GetDataCache(x, y) = tile;
+				return;
+			}
 			if ((passable[chip_index] & (Passable::Wall | Passable::Above)) != 0)
 				tile.z = TileAbove; // Upper sublayer
 			else
@@ -465,6 +499,9 @@ void TilemapLayer::CreateTileCacheAt(int x, int y, int tile_id) {
 }
 
 void TilemapLayer::RecreateTileDataAt(int x, int y, int tile_id) {
+	if (!IsInMapBounds(x, y)) return;
+	const auto map_index = static_cast<size_t>(x + y * width);
+	if (map_index >= map_data.size()) return;
 	map_data[x + y * width] = static_cast<short>(tile_id);
 	Game_Map::ReplaceTileAt(x, y, tile_id, layer);
 	CreateTileCacheAt(x, y, tile_id);
@@ -842,7 +879,12 @@ void TilemapLayer::RecalculateAutotile(int x, int y, int tile_id) {
 	auto processBlock = [&](int /*blockType*/, int blockStride, int blockBase, auto isSameAutotileFn) {
 		uint8_t neighbors = calculateNeighbors(isSameAutotileFn);
 		int block = (tile_id - blockBase) / blockStride;
-		int variant = AUTOTILE_D_VARIANTS_MAP.at(neighbors);
+		auto variant_it = AUTOTILE_D_VARIANTS_MAP.find(neighbors);
+		// Some games use neighbor combinations that are not represented by
+		// RPG Maker's canonical autotile table. Keep the original tile rather
+		// than throwing during map startup.
+		if (variant_it == AUTOTILE_D_VARIANTS_MAP.end()) return;
+		int variant = variant_it->second;
 		int new_tile_id = blockBase + (block * blockStride) + variant;
 		RecreateTileDataAt(x, y, new_tile_id);
 		};
