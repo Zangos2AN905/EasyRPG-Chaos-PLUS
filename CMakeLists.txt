@@ -532,6 +532,8 @@ add_library(${PROJECT_NAME} OBJECT
 	src/chaos/multiplayer_chat.h
 	src/chaos/multiplayer_commands.cpp
 	src/chaos/multiplayer_commands.h
+	src/chaos/multiplayer_radio.cpp
+	src/chaos/multiplayer_radio.h
 	src/chaos/window_chat_dialogue.cpp
 	src/chaos/window_chat_dialogue.h
 	src/chaos/drawable_rubber_band.cpp
@@ -542,6 +544,8 @@ add_library(${PROJECT_NAME} OBJECT
 	src/chaos/custom_mode.h
 	src/chaos/scene_custom_mode_setup.cpp
 	src/chaos/scene_custom_mode_setup.h
+	src/chaos/scene_radio.cpp
+	src/chaos/scene_radio.h
 	src/chaos/scene_multiplayer_menu.cpp
 	src/chaos/scene_multiplayer_menu.h
 	src/chaos/scene_multiplayer_lobby.cpp
@@ -1141,6 +1145,10 @@ if(ENET_LIBRARY)
 	message(STATUS "ENet: ${ENET_LIBRARY}")
 else()
 	message(WARNING "ENet library not found, multiplayer will not be available")
+endif()
+
+if(WIN32)
+	target_link_libraries(${PROJECT_NAME} comdlg32)
 endif()
 
 # Always enable Wine registry support on non-Windows, but not for console ports

@@ -76,6 +76,7 @@ const char Scene::scene_names[SceneMax][12] =
 	"ModMenu",
 	"SkinSelect",
 	"GMSelect",
+	"Radio",
 	"AIChar",
 	"Editor",
 	"RpgStore"
@@ -125,6 +126,8 @@ lcf::rpg::SaveSystem::Scene Scene::rpgRtSceneFromSceneType(SceneType t) {
 			return lcf::rpg::SaveSystem::Scene_game_over;
 		case Debug:
 			return lcf::rpg::SaveSystem::Scene_debug;
+		case Radio:
+			break;
 	}
 	return lcf::rpg::SaveSystem::Scene(-1);
 }

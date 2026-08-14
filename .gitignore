@@ -6,7 +6,6 @@
 *~
 *.orig
 *.bak
-/.freebuff
 
 # cmake
 /Makefile

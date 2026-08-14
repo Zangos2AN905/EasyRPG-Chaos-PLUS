@@ -54,10 +54,12 @@ void GenericAudio::BGM_Play(Filesystem_Stream::InputStream stream, int volume, i
 		return;
 	}
 
+	// Release every previous channel before selecting the new one. In
+	// particular, stopping only via the flag leaves native MIDI output active.
+	BGM_Stop();
 	for (auto& BGM_Channel : BGM_Channels) {
-		BGM_Channel.stopped = true; //Stop all running background music
 		if (!BGM_Channel.IsUsed()) {
-			// If there is an unused bgm channel
+			// If there is an unused BGM channel
 			LockMutex();
 			BGM_PlayedOnceIndicator = false;
 			UnlockMutex();
@@ -92,6 +94,19 @@ void GenericAudio::BGM_Stop() {
 	UnlockMutex();
 }
 
+void GenericAudio::BGM_SetLooping(bool looping) {
+	LockMutex();
+	for (auto& channel : BGM_Channels) {
+		if (!channel.IsUsed()) continue;
+		if (channel.midi_out_used) {
+			if (midi_thread) midi_thread->GetMidiOut().SetLooping(looping);
+		} else if (channel.decoder) {
+			channel.decoder->SetLooping(looping);
+		}
+	}
+	UnlockMutex();
+}
+
 bool GenericAudio::BGM_PlayedOnce() const {
 	if (BGM_PlayedOnceIndicator) {
 		return BGM_PlayedOnceIndicator;
@@ -110,11 +125,20 @@ bool GenericAudio::BGM_PlayedOnce() const {
 }
 
 bool GenericAudio::BGM_IsPlaying() const {
+	LockMutex();
 	for (auto& BGM_Channel : BGM_Channels) {
-		if (!BGM_Channel.stopped) {
+		if (BGM_Channel.stopped) continue;
+		if (BGM_Channel.midi_out_used) {
+			if (midi_thread && !midi_thread->GetMidiOut().IsFinished()) {
+				UnlockMutex();
+				return true;
+			}
+		} else if (BGM_Channel.decoder && !BGM_Channel.decoder->IsFinished()) {
+			UnlockMutex();
 			return true;
-		};
+		}
 	}
+	UnlockMutex();
 	return false;
 }
 

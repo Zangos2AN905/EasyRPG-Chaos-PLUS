@@ -50,14 +50,13 @@ The older SDL version 1.2 is still supported, but deprecated.
 Please do not add new platform code for this library.
 
 ## Multiplayer support
-It contains: Switch and variable synchronization, player join/leave notifications, and more!
 
-Note that only LAN play is supported, so Radmin VPN or similar software is required to play over the internet.
+It contains: Switch and variable synchronization, chatting, and more!
 
 ## Supported platforms:
 
 - Windows
-- Linux
+- Linux (soon)
 
 Unfortunately, Emscripten support is NOT possible. And no MacOS support either (I don't own a Mac)
 

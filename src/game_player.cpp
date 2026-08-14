@@ -410,7 +410,8 @@ void Game_Player::UpdateNextMovementAction() {
 			break;
 	}
 	if (move_dir >= 0) {
-		SetThrough((Player::debug_flag && Input::IsPressed(Input::DEBUG_THROUGH)) || data()->move_route_through);
+		SetThrough(Chaos::MultiplayerState::Instance().IsNoclipEnabled(Chaos::NetManager::Instance().GetLocalPeerId()) ||
+			(Player::debug_flag && Input::IsPressed(Input::DEBUG_THROUGH)) || data()->move_route_through);
 		Move(move_dir);
 		ResetThrough();
 		if (IsStopping()) {

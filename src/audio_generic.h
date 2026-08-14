@@ -48,6 +48,7 @@ public:
 	void BGM_Pause() override;
 	void BGM_Resume() override;
 	void BGM_Stop() override;
+	void BGM_SetLooping(bool looping) override;
 	bool BGM_PlayedOnce() const override;
 	bool BGM_IsPlaying() const override;
 	int BGM_GetTicks() const override;

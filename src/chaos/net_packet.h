@@ -91,6 +91,11 @@ enum class PacketType : uint8_t {
 	CustomModeSettings, // Host -> All: custom mode mix/objective/toggles
 	ChaosEvent,         // Host -> All: random chaos event to apply
 	MultiplayerCommand, // Client -> Host -> All: validated admin/player command
+	RadioQueueSync,     // Host -> All: authoritative radio queue
+	RadioAddRequest,    // Client -> Host: add a game music track
+	RadioCustomBegin,   // Client -> Host or Host -> All: custom music metadata
+	RadioCustomChunk,   // Client -> Host or Host -> All: custom music data
+	RadioCustomComplete,// Client -> Host or Host -> All: custom music finished
 };
 
 // Simple packet buffer for serialization

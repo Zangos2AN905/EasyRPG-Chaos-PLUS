@@ -96,6 +96,7 @@ private:
 	void ProcessAvatarDownloads();
 	void StartAvatarDownload(const std::string& user_id, const std::string& avatar_hash);
 	void UpdateAvatarSprites(const std::vector<uint16_t>& player_ids);
+	void UpdatePlayerNames();
 	void UpdateChatBubbles();
 	void ShowChatBubble(uint16_t peer_id, const std::string& message);
 	static std::string WrapBubbleText(const std::string& message);
@@ -139,6 +140,7 @@ private:
 		int timer = 0;
 	};
 	std::unordered_map<uint16_t, ChatBubble> chat_bubbles;
+	std::unordered_map<uint16_t, std::unique_ptr<Window_Help>> player_name_labels;
 
 	// Dialogue chat — queued custom windows
 	static constexpr int DIALOGUE_DISPLAY_FRAMES = 180; // 3 seconds at 60fps

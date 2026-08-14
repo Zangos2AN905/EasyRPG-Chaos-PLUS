@@ -183,6 +183,27 @@ bool Execute(const ParsedCommand& command, uint16_t issuer, bool from_network) {
 		return true;
 	}
 
+	if (command.name == "noclip") {
+		if (command.args.size() > 2) return false;
+		std::vector<uint16_t> targets{issuer};
+		if (!command.args.empty() && Lower(command.args[0]) == "all") {
+			targets = AllPlayers();
+		} else if (!command.args.empty()) {
+			uint16_t target = 0;
+			if (!ResolvePlayer(command.args[0], issuer, target)) return false;
+			targets = {target};
+		}
+		bool enabled = !state.IsNoclipEnabled(targets.front());
+		if (command.args.size() == 2) {
+			const auto value = Lower(command.args[1]);
+			if (value == "on" || value == "1") enabled = true;
+			else if (value == "off" || value == "0") enabled = false;
+			else return false;
+		}
+		for (const auto target : targets) state.SetNoclipEnabled(target, enabled);
+		return true;
+	}
+
 	if (command.name == "music" || command.name == "batbgm") {
 		const std::string music_name = Join(command.args, 0);
 		if (music_name.empty()) return false;

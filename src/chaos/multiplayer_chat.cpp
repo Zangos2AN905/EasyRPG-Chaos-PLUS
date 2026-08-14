@@ -5,6 +5,7 @@
 #include "chaos/multiplayer_chat.h"
 #include "chaos/multiplayer_state.h"
 #include "chaos/multiplayer_commands.h"
+#include "chaos/scene_radio.h"
 #include "chaos/net_manager.h"
 #include "chaos/net_packet.h"
 #include "chaos/multiplayer_mode.h"
@@ -43,7 +44,7 @@ size_t AvatarWriteCallback(void* data, size_t size, size_t count, void* user_dat
 } // namespace
 
 const std::string MultiplayerChat::input_chars =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?'-:;()";
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?'-:;()_+=[]{}\\|`~<>\"@#$%^&*/";
 
 MultiplayerChat& MultiplayerChat::Instance() {
 	static MultiplayerChat instance;
@@ -82,6 +83,7 @@ void MultiplayerChat::OnMapUnloaded() {
 	player_list_window.reset();
 	avatar_sprites.clear();
 	chat_bubbles.clear();
+	player_name_labels.clear();
 	dialogue_window.reset();
 	dialogue_queue.clear();
 }
@@ -94,6 +96,7 @@ void MultiplayerChat::Reset() {
 	player_list_window.reset();
 	avatar_sprites.clear();
 	chat_bubbles.clear();
+	player_name_labels.clear();
 	std::lock_guard lock(avatar_mutex);
 	avatar_bitmaps.clear();
 	avatar_downloads.clear();
@@ -117,6 +120,7 @@ bool MultiplayerChat::Update() {
 	UpdateOverlay();
 	UpdateDialogue();
 	UpdatePlayerList();
+	UpdatePlayerNames();
 	UpdateChatBubbles();
 
 
@@ -130,6 +134,11 @@ bool MultiplayerChat::Update() {
 	// T = Normal chat
 	if (Input::IsRawKeyTriggered(Input::Keys::T)) {
 		OpenInput(false);
+		return true;
+	}
+
+	if (Input::IsRawKeyTriggered(Input::Keys::ENDS)) {
+		Scene::Push(std::make_shared<Scene_Radio>());
 		return true;
 	}
 
@@ -210,6 +219,7 @@ void MultiplayerChat::UpdateInput() {
 		++backspace_held;
 		erase = backspace_held >= 30 && (backspace_held - 30) % 4 == 0;
 	}
+
 	if (erase && !input_buffer.empty()) {
 		input_buffer.pop_back();
 	}
@@ -242,6 +252,12 @@ void MultiplayerChat::UpdateInput() {
 		{ Input::Keys::SLASH, '/', '?', false },
 		{ Input::Keys::SEMICOLON, ';', ':', false },
 		{ Input::Keys::APOSTROPH, '\'', '"', false },
+		{ Input::Keys::LEFT_BRACKET, '[', '{', false },
+		{ Input::Keys::RIGHT_BRACKET, ']', '}', false },
+		{ Input::Keys::BACKSLASH, '\\', '|', false },
+		{ Input::Keys::MINUS, '-', '_', false },
+		{ Input::Keys::EQUALS, '=', '+', false },
+		{ Input::Keys::GRAVE, '`', '~', false },
 	};
 
 	bool shift = Input::IsRawKeyPressed(Input::Keys::LSHIFT) ||
@@ -542,6 +558,41 @@ void MultiplayerChat::UpdateChatBubbles() {
 		}
 
 		if (--it->second.timer <= 0) it = chat_bubbles.erase(it);
+		else ++it;
+	}
+}
+
+void MultiplayerChat::UpdatePlayerNames() {
+	const auto& remote_players = MultiplayerState::Instance().GetRemotePlayers();
+	for (const auto& [peer_id, player] : remote_players) {
+		if (!player || !player->IsOnCurrentMap() || !player->IsVisible()) {
+			auto label = player_name_labels.find(peer_id);
+			if (label != player_name_labels.end()) label->second->SetVisible(false);
+			continue;
+		}
+
+		auto label_it = player_name_labels.find(peer_id);
+		if (label_it == player_name_labels.end()) {
+			auto label = std::make_unique<Window_Help>(0, 0, 160, 16);
+			label->SetBackOpacity(0);
+			label->SetFrameOpacity(0);
+			label->SetZ(Priority_Window + 201);
+			label_it = player_name_labels.emplace(peer_id, std::move(label)).first;
+		}
+
+		auto& label = label_it->second;
+		label->SetText(player->GetPlayerName());
+		const int x = std::clamp(player->GetScreenX() - label->GetWidth() / 2,
+			0, std::max(0, Player::screen_width - label->GetWidth()));
+		const int y = std::max(0, player->GetScreenY() - 32 - label->GetHeight());
+		label->SetX(x);
+		label->SetY(y);
+		label->SetVisible(true);
+		label->Update();
+	}
+
+	for (auto it = player_name_labels.begin(); it != player_name_labels.end();) {
+		if (remote_players.find(it->first) == remote_players.end()) it = player_name_labels.erase(it);
 		else ++it;
 	}
 }

@@ -144,6 +144,8 @@ public:
 	/** Multiplayer chat-command permissions and dispatch. */
 	bool IsAdmin(uint16_t peer_id) const;
 	void SetAdmin(uint16_t peer_id, bool value);
+	bool IsNoclipEnabled(uint16_t peer_id) const;
+	void SetNoclipEnabled(uint16_t peer_id, bool value);
 	void SpectatePlayer(uint16_t peer_id);
 	void StartCommandBattle(int troop_id, bool announce_network);
 
@@ -260,6 +262,7 @@ private:
 	// Remote players indexed by peer_id
 	std::map<uint16_t, std::unique_ptr<Game_RemotePlayer>> remote_players;
 	std::set<uint16_t> admin_peers;
+	std::set<uint16_t> noclip_peers;
 
 	// Spectator state
 	bool spectating = false;

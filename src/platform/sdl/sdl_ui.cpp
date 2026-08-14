@@ -693,6 +693,9 @@ Input::Keys::InputKey SdlKey2InputKey(SDLKey sdlkey) {
 		case SDLK_CAPSLOCK		: return Input::Keys::CAPS_LOCK;
 		case SDLK_NUMLOCK		: return Input::Keys::NUM_LOCK;
 		case SDLK_SCROLLOCK		: return Input::Keys::SCROLL_LOCK;
+		case SDLK_MINUS			: return Input::Keys::MINUS;
+		case SDLK_EQUALS		: return Input::Keys::EQUALS;
+		case SDLK_BACKQUOTE		: return Input::Keys::GRAVE;
 
 		default					: return Input::Keys::NONE;
 	}

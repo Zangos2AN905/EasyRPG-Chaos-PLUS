@@ -66,8 +66,9 @@ public:
 		ModMenu,
 		SkinSelect,
 		GameModeSelect,
-		CustomModeSetup,
-		AICharacters,
+	CustomModeSetup,
+	Radio,
+	AICharacters,
 		Editor,
 		RpgStore,
 		SceneMax

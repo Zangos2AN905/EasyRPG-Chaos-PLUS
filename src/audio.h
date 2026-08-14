@@ -70,6 +70,9 @@ struct AudioInterface {
 	 */
 	virtual void BGM_Stop() = 0;
 
+	/** Changes whether the current BGM repeats when it reaches the end. */
+	virtual void BGM_SetLooping(bool) {}
+
 	/**
 	 * Returns whether the background music has played at least once.
 	 */
@@ -206,6 +209,7 @@ public:
 	void BGM_Pause() override {}
 	void BGM_Resume() override {}
 	void BGM_Stop() override;
+	void BGM_SetLooping(bool) override {}
 	bool BGM_PlayedOnce() const override;
 	bool BGM_IsPlaying() const override { return false; }
 	int BGM_GetTicks() const override;

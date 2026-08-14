@@ -3,6 +3,7 @@
  */
 
 #include "chaos/multiplayer_state.h"
+#include "chaos/multiplayer_radio.h"
 #include "chaos/multiplayer_chat.h"
 #include "chaos/multiplayer_commands.h"
 #include "chaos/custom_mode.h"
@@ -57,6 +58,8 @@ void MultiplayerState::StartMultiplayer() {
 	if (active) return;
 	active = true;
 	admin_peers.clear();
+	MultiplayerRadio::Instance().Start();
+	noclip_peers.clear();
 	SetupCallbacks();
 	if (NetManager::Instance().GetMode() == MultiplayerMode::Custom) {
 		CustomMode::Instance().Start();
@@ -90,6 +93,15 @@ bool MultiplayerState::IsAdmin(uint16_t peer_id) const {
 	return peer_id == 1 || admin_peers.count(peer_id) != 0;
 }
 
+bool MultiplayerState::IsNoclipEnabled(uint16_t peer_id) const {
+	return noclip_peers.count(peer_id) != 0;
+}
+
+void MultiplayerState::SetNoclipEnabled(uint16_t peer_id, bool value) {
+	if (value) noclip_peers.insert(peer_id);
+	else noclip_peers.erase(peer_id);
+}
+
 void MultiplayerState::SetAdmin(uint16_t peer_id, bool value) {
 	if (peer_id == 1) return;
 	if (value) admin_peers.insert(peer_id);
@@ -102,6 +114,7 @@ void MultiplayerState::StopMultiplayer() {
 	SplitMode::Instance().Stop();
 	UnderwaterMode::Instance().Stop();
 	CustomMode::Instance().Stop();
+	MultiplayerRadio::Instance().Stop();
 	ExitSpectatorMode();
 	active = false;
 	host_lost = false;
@@ -134,6 +147,7 @@ void MultiplayerState::StopMultiplayer() {
 	}
 	remote_players.clear();
 	admin_peers.clear();
+	noclip_peers.clear();
 	last_switches.clear();
 	last_variables.clear();
 	 applied_event_commands.clear();
@@ -183,6 +197,7 @@ void MultiplayerState::Update() {
 
 	// Process network events
 	net.Update();
+	MultiplayerRadio::Instance().Update();
 
 	// Only do gameplay sync when we're on a map (spriteset exists)
 	if (!current_spriteset) return;
@@ -292,6 +307,7 @@ void MultiplayerState::OnMapLoaded(Spriteset_Map* spriteset) {
 	// re-run ResetGraphic(), which would stomp move-route sprite changes.
 	const bool first_map_activation = (current_spriteset == nullptr);
 	current_spriteset = spriteset;
+	MultiplayerRadio::Instance().OnMapLoaded();
 
 	if (HasSkin() && !skin_image_data.empty()) {
 		BitmapRef bmp = Bitmap::Create(skin_image_data.data(), static_cast<unsigned>(skin_image_data.size()), true);
@@ -558,6 +574,10 @@ if (net.IsHost() && IsModeActive(MultiplayerMode::Split)) {
 	if (net.IsHost() && net.GetMode() == MultiplayerMode::Custom) {
 		CustomMode::Instance().SendSettingsTo(peer_id);
 	}
+
+	if (net.IsHost()) {
+		MultiplayerRadio::Instance().SendQueueTo(peer_id);
+	}
 }
 
 void MultiplayerState::OnPlayerDisconnected(uint16_t peer_id) {
@@ -662,6 +682,13 @@ void MultiplayerState::OnPacketReceived(uint16_t sender_id, const uint8_t* data,
 			break;
 		case PacketType::MultiplayerCommand:
 			HandleMultiplayerCommand(sender_id, data, len);
+			break;
+		case PacketType::RadioQueueSync:
+		case PacketType::RadioAddRequest:
+		case PacketType::RadioCustomBegin:
+		case PacketType::RadioCustomChunk:
+		case PacketType::RadioCustomComplete:
+			MultiplayerRadio::Instance().HandlePacket(sender_id, data, len);
 			break;
 		case PacketType::VoiceData:
 			break;
