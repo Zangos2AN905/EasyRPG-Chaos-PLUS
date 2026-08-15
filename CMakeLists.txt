@@ -534,6 +534,8 @@ add_library(${PROJECT_NAME} OBJECT
 	src/chaos/multiplayer_commands.h
 	src/chaos/multiplayer_radio.cpp
 	src/chaos/multiplayer_radio.h
+	src/chaos/multiplayer_boombox.cpp
+	src/chaos/multiplayer_boombox.h
 	src/chaos/window_chat_dialogue.cpp
 	src/chaos/window_chat_dialogue.h
 	src/chaos/drawable_rubber_band.cpp
@@ -546,6 +548,8 @@ add_library(${PROJECT_NAME} OBJECT
 	src/chaos/scene_custom_mode_setup.h
 	src/chaos/scene_radio.cpp
 	src/chaos/scene_radio.h
+	src/chaos/scene_spy_tablet.cpp
+	src/chaos/scene_spy_tablet.h
 	src/chaos/scene_multiplayer_menu.cpp
 	src/chaos/scene_multiplayer_menu.h
 	src/chaos/scene_multiplayer_lobby.cpp
@@ -2037,6 +2041,11 @@ message(STATUS "")
 message(STATUS "Manual page: ${MANUAL_STATUS}")
 message(STATUS "Bash completion: ${BASHCOMPLETION_STATUS}")
 message(STATUS "Doxygen: ${DOXYGEN_STATUS}")
+
+option(BUILD_DEDICATED_SERVER "Build the standalone C++ dedicated relay server" ON)
+if(BUILD_DEDICATED_SERVER)
+	add_subdirectory(dedicatedserver)
+endif()
 
 message(STATUS "")
 

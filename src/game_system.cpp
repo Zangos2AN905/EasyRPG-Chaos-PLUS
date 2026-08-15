@@ -36,6 +36,8 @@
 #include "utils.h"
 #include "audio_secache.h"
 #include "feature.h"
+#include "chaos/multiplayer_radio.h"
+#include "chaos/multiplayer_boombox.h"
 
 Game_System::Game_System()
 	: dbsys(&lcf::Data::system)
@@ -72,6 +74,13 @@ bool Game_System::IsStopSoundFilename(std::string_view name, Filesystem_Stream::
 void Game_System::BgmPlay(lcf::rpg::Music const& bgm) {
 	lcf::rpg::Music previous_music = data.current_music;
 	data.current_music = bgm;
+	if (Chaos::MultiplayerRadio::Instance().IsOverridingGameMusic() ||
+		Chaos::MultiplayerBoombox::Instance().IsOverridingGameMusic()) {
+		music_request_id = FileRequestBinding();
+		bgm_pending = false;
+		data.music_stopping = false;
+		return;
+	}
 
 	// Validate
 	if (bgm.volume < 0 || bgm.volume > 100) {
@@ -133,12 +142,20 @@ void Game_System::BgmPlay(lcf::rpg::Music const& bgm) {
 }
 
 void Game_System::BgmStop() {
+	if (Chaos::MultiplayerRadio::Instance().IsOverridingGameMusic() ||
+		Chaos::MultiplayerBoombox::Instance().IsOverridingGameMusic()) {
+		music_request_id = FileRequestBinding();
+		bgm_pending = false;
+		return;
+	}
 	music_request_id = FileRequestBinding();
 	data.current_music.name = "(OFF)";
 	Audio().BGM_Stop();
 }
 
 void Game_System::BgmFade(int duration, bool clear_current_music) {
+	if (Chaos::MultiplayerRadio::Instance().IsOverridingGameMusic() ||
+		Chaos::MultiplayerBoombox::Instance().IsOverridingGameMusic()) return;
 	Audio().BGM_Fade(duration);
 	if (clear_current_music) {
 		data.current_music.name = "(OFF)";
@@ -542,6 +559,11 @@ std::string Game_System::InelukiReadLink(Filesystem_Stream::InputStream& stream)
 }
 
 void Game_System::OnBgmReady(FileRequestResult* result) {
+	if (Chaos::MultiplayerRadio::Instance().IsOverridingGameMusic() ||
+		Chaos::MultiplayerBoombox::Instance().IsOverridingGameMusic()) {
+		bgm_pending = false;
+		return;
+	}
 	// Take from current_music, params could have changed over time
 	bgm_pending = false;
 
@@ -570,6 +592,11 @@ void Game_System::OnBgmReady(FileRequestResult* result) {
 }
 
 void Game_System::OnBgmInelukiReady(FileRequestResult* result) {
+	if (Chaos::MultiplayerRadio::Instance().IsOverridingGameMusic() ||
+		Chaos::MultiplayerBoombox::Instance().IsOverridingGameMusic()) {
+		bgm_pending = false;
+		return;
+	}
 	bgm_pending = false;
 	Audio().BGM_Play(FileFinder::Game().OpenFile(result->file), data.current_music.volume, data.current_music.tempo, data.current_music.fadein, data.current_music.balance);
 }

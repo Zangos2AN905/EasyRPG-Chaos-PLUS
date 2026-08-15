@@ -14,7 +14,7 @@ namespace Chaos {
 
 class Scene_Radio : public Scene {
 public:
-	Scene_Radio();
+	explicit Scene_Radio(bool boombox = false);
 
 	void Start() override;
 	void vUpdate() override;
@@ -28,6 +28,7 @@ private:
 	std::unique_ptr<Window_Help> help_window;
 	std::unique_ptr<Window_Help> queue_window;
 	std::unique_ptr<Window_Command> list_window;
+	bool boombox = false;
 };
 
 } // namespace Chaos

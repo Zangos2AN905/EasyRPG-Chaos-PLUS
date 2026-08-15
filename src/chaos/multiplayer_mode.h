@@ -14,7 +14,7 @@ enum class MultiplayerMode {
 	Normal = 0,       // Existing non-team mode
 	TeamParty = 1,    // Team up, switches/variables sync, max 4 players
 	Chaotix = 2,      // Like TeamParty but players must stay close
-	Single = 3,       // Placeholder: each player controls one player
+	Single = 3,       // All players control the single shared player
 	Horror = 4,       // Placeholder: FNAF-inspired multiplayer mode
 	Rewind = 5,       // Placeholder: shared-server rewinds
 	Split = 6,        // Placeholder: normal and broken/EXE groups
@@ -61,9 +61,9 @@ inline const ModeProperties& GetModeProperties(MultiplayerMode mode) {
 		{ "Normal",         "Normal non-team multiplayer mode. Unlimited players.",              0, false, false, false, false, false },
 		{ "Team Party",     "Team up! Switches and variables sync. Max 4 players.",             4, true,  true,  false, false, false },
 		{ "Chaotix",        "Team mode, but players must stay close together. Max 4.",          4, true,  true,  true,  true,  false },
-		{ "Single Mode",    "Twitch Plays-style multiplayer. Each player controls one player.",   0, false, false, false, false, false },
+		{ "Single Mode",    "Twitch Plays-style multiplayer. Everyone controls one shared player.", 0, false, false, false, false, false },
 		{ "Horror Mode",    "FNAF-inspired multiplayer horror mode.",                             4, false, false, false, false, false },
-		{ "Rewind Mode",    "Each player gets rewinds that rewind the whole server.",              4, false, false, false, false, false },
+		{ "Rewind Mode",    "Hold comma to rewind the whole server up to 15 seconds.",         4, false, false, false, false, false },
 		{ "Split Mode",     "Two groups: normal and a broken/EXE version of the world.",          4, false, false, false, false, false },
 		{ "Underwater Mode", "Classic Sonic-style underwater survival. Find air pockets.",         4, false, false, false, false, false },
 		{ "Custom Mode",    "Mix two modes, pick an objective, toggle chaos features.",           0, false, false, false, false, false },

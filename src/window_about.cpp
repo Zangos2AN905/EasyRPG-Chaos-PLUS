@@ -32,17 +32,16 @@ Window_About::Window_About(int ix, int iy, int iwidth, int iheight) :
 
 void Window_About::Refresh() {
 	std::vector<std::string> about_msg = {
-		"EasyRPG Player is a RPG Maker 2000/2003",
-		"interpreter.",
-		"Licensed under the GPLv3.",
+		"EasyRPG Chaos PLUS by FemZangos",
+		"(Original by EasyRPG Team)",
 		"",
-		"v" + Version::GetVersionString(true, true),
+		"This is a multiplayer EasyRPG Fork",
+		"made for fun. It also adds more",
+		"features.",
 		"",
-		"Website: easyrpg.org",
-		"Contact us: easyrpg.org/contact",
-		"",
-		"Bugs: github.com/EasyRPG/Player/issues",
-		"Contribute: easyrpg.org/contribute",
+		"This is a BETA, there might be bugs",
+		"and missing features. Please open an",
+		"issue if you have one.",
 	};
 
 	for (size_t i = 0; i < about_msg.size(); ++i) {

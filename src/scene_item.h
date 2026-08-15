@@ -22,6 +22,8 @@
 #include "scene.h"
 #include "window_help.h"
 #include "window_item.h"
+#include "window_command.h"
+#include <vector>
 
 /**
  * Scene_Item class.
@@ -46,6 +48,7 @@ private:
 	std::unique_ptr<Window_Help> help_window;
 	/** Displays available items. */
 	std::unique_ptr<Window_Item> item_window;
+	std::unique_ptr<Window_Command> multiplayer_item_window;
 	/** Index of item selected on startup. */
 	int item_index;
 };

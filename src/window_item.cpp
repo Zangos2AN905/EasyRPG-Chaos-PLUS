@@ -25,6 +25,7 @@
 #include <lcf/reader_util.h>
 #include "game_battle.h"
 #include "output.h"
+#include "game_battle.h"
 
 Window_Item::Window_Item(int ix, int iy, int iwidth, int iheight) :
 	Window_Selectable(ix, iy, iwidth, iheight) {
@@ -32,7 +33,7 @@ Window_Item::Window_Item(int ix, int iy, int iwidth, int iheight) :
 }
 
 const lcf::rpg::Item* Window_Item::GetItem() const {
-	if (index < 0) {
+	if (index < 0 || index >= static_cast<int>(data.size())) {
 		return nullptr;
 	}
 

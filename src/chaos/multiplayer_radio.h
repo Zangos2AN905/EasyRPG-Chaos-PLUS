@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <deque>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -28,10 +29,13 @@ public:
 	void Stop();
 	void Update();
 	void OnMapLoaded();
+	bool IsOverridingGameMusic() const { return active && !restoring_game_music && !queue.empty(); }
 
 	void RefreshAvailableTracks();
 	const std::vector<RadioTrack>& GetAvailableTracks() const { return available_tracks; }
 	const std::deque<RadioTrack>& GetQueue() const { return queue; }
+	int GetSkipVoteCount() const { return static_cast<int>(skip_votes.size()); }
+	int GetSkipVoteRequired() const;
 
 	bool SubmitGameTrack(size_t index);
 	bool SubmitCustomMusic(const std::string& filename);
@@ -64,6 +68,10 @@ private:
 	void ApplyQueue(const std::deque<RadioTrack>& new_queue);
 	void StartTrack(const RadioTrack& track);
 	void AdvanceTrack();
+	void HandleSkipInput();
+	void SubmitSkipVote();
+	void HandleSkipRequest(uint16_t sender_id, const uint8_t* data, size_t len);
+	void HandleSkipVote(uint16_t sender_id, const uint8_t* data, size_t len);
 	void RestoreGameMusic();
 	bool WriteCustomFile(uint32_t track_id, const std::string& extension,
 		const std::vector<uint8_t>& data) const;
@@ -79,12 +87,14 @@ private:
 	uint32_t playing_track_id = 0;
 	int playback_grace_frames = 0;
 	std::deque<RadioTrack> queue;
+	std::set<uint16_t> skip_votes;
 	std::vector<RadioTrack> available_tracks;
 	std::map<uint32_t, std::vector<uint8_t>> custom_data;
 	std::map<uint16_t, PendingUpload> pending_uploads;
 	std::map<uint32_t, IncomingDownload> incoming_downloads;
 
 	bool saved_bgm_valid = false;
+	bool restoring_game_music = false;
 	struct SavedMusic {
 		std::string name;
 		int32_t volume = 100;

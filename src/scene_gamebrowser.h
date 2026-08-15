@@ -24,7 +24,6 @@
 #include "window_command_horizontal.h"
 #include "window_help.h"
 #include "window_gamelist.h"
-#include "chaos/scene_mod_menu.h"
 
 /**
  * Game browser class.
@@ -64,7 +63,6 @@ public:
 	enum CommandOptionType {
 		GameList = 0,
 		Options,
-		Mods,
 		About,
 		Quit
 	};

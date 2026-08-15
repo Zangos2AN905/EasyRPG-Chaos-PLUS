@@ -68,6 +68,7 @@ public:
 		GameModeSelect,
 	CustomModeSetup,
 	Radio,
+	SpyTablet,
 	AICharacters,
 		Editor,
 		RpgStore,

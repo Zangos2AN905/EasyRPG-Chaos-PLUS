@@ -4,6 +4,7 @@
 
 #include "chaos/multiplayer_state.h"
 #include "chaos/multiplayer_radio.h"
+#include "chaos/multiplayer_boombox.h"
 #include "chaos/multiplayer_chat.h"
 #include "chaos/multiplayer_commands.h"
 #include "chaos/custom_mode.h"
@@ -59,7 +60,17 @@ void MultiplayerState::StartMultiplayer() {
 	active = true;
 	admin_peers.clear();
 	MultiplayerRadio::Instance().Start();
+	MultiplayerBoombox::Instance().Start();
 	noclip_peers.clear();
+	rewind_history.clear();
+	rewind_holders.clear();
+	rewind_cursor = 0;
+	rewind_sequence = 0;
+	last_rewind_sequence = 0;
+	rewind_cooldown_frames = 0;
+	rewind_active = false;
+	local_rewind_pressed = false;
+	smooth_player_target_valid = false;
 	SetupCallbacks();
 	if (NetManager::Instance().GetMode() == MultiplayerMode::Custom) {
 		CustomMode::Instance().Start();
@@ -115,6 +126,7 @@ void MultiplayerState::StopMultiplayer() {
 	UnderwaterMode::Instance().Stop();
 	CustomMode::Instance().Stop();
 	MultiplayerRadio::Instance().Stop();
+	MultiplayerBoombox::Instance().Stop();
 	ExitSpectatorMode();
 	active = false;
 	host_lost = false;
@@ -148,6 +160,11 @@ void MultiplayerState::StopMultiplayer() {
 	remote_players.clear();
 	admin_peers.clear();
 	noclip_peers.clear();
+	rewind_history.clear();
+	rewind_holders.clear();
+	rewind_active = false;
+	local_rewind_pressed = false;
+	smooth_player_target_valid = false;
 	last_switches.clear();
 	last_variables.clear();
 	 applied_event_commands.clear();
@@ -197,10 +214,13 @@ void MultiplayerState::Update() {
 
 	// Process network events
 	net.Update();
+	UpdateRewind();
 	MultiplayerRadio::Instance().Update();
+	MultiplayerBoombox::Instance().Update();
 
 	// Only do gameplay sync when we're on a map (spriteset exists)
 	if (!current_spriteset) return;
+	UpdateSmoothPlayerTarget();
 
 	// Send local player position periodically (skip if spectating — we're dead)
 	if (!spectating) {
@@ -209,10 +229,16 @@ void MultiplayerState::Update() {
 			BroadcastSkin();
 		}
 
-		position_send_counter++;
-		if (position_send_counter >= POSITION_SEND_INTERVAL) {
-			position_send_counter = 0;
-			SendLocalPlayerPosition();
+		if (IsModeActive(MultiplayerMode::Single) && !net.IsHost()) {
+			SendSharedPlayerInput();
+		} else if (IsModeActive(MultiplayerMode::Rewind) && rewind_active && !net.IsHost()) {
+			// Rewind snapshots are authoritative while the key is held.
+		} else {
+			position_send_counter++;
+			if (position_send_counter >= POSITION_SEND_INTERVAL) {
+				position_send_counter = 0;
+				SendLocalPlayerPosition();
+			}
 		}
 	}
 
@@ -577,10 +603,12 @@ if (net.IsHost() && IsModeActive(MultiplayerMode::Split)) {
 
 	if (net.IsHost()) {
 		MultiplayerRadio::Instance().SendQueueTo(peer_id);
+		MultiplayerBoombox::Instance().SendStatesTo(peer_id);
 	}
 }
 
 void MultiplayerState::OnPlayerDisconnected(uint16_t peer_id) {
+	rewind_holders.erase(peer_id);
 	RemoveRemotePlayerSprite(peer_id);
 	remote_players.erase(peer_id);
 
@@ -613,6 +641,18 @@ void MultiplayerState::OnPacketReceived(uint16_t sender_id, const uint8_t* data,
 	switch (ptype) {
 		case PacketType::PlayerPosition:
 			HandlePlayerPosition(sender_id, data, len);
+			break;
+		case PacketType::SharedPlayerInput:
+			HandleSharedPlayerInput(sender_id, data, len);
+			break;
+		case PacketType::RewindInput:
+			HandleRewindInput(sender_id, data, len);
+			break;
+		case PacketType::RewindStatus:
+			HandleRewindStatus(data, len);
+			break;
+		case PacketType::RewindSnapshot:
+			HandleRewindSnapshot(data, len);
 			break;
 		case PacketType::SwitchSync:
 			HandleSwitchSync(data, len);
@@ -688,7 +728,15 @@ void MultiplayerState::OnPacketReceived(uint16_t sender_id, const uint8_t* data,
 		case PacketType::RadioCustomBegin:
 		case PacketType::RadioCustomChunk:
 		case PacketType::RadioCustomComplete:
+		case PacketType::RadioSkipRequest:
+		case PacketType::RadioSkipVote:
 			MultiplayerRadio::Instance().HandlePacket(sender_id, data, len);
+			break;
+		case PacketType::BoomboxState:
+		case PacketType::BoomboxCustomBegin:
+		case PacketType::BoomboxCustomChunk:
+		case PacketType::BoomboxCustomComplete:
+			MultiplayerBoombox::Instance().HandlePacket(sender_id, data, len);
 			break;
 		case PacketType::VoiceData:
 			break;
@@ -721,6 +769,31 @@ void MultiplayerState::HandlePlayerPosition(uint16_t sender_id, const uint8_t* d
 
 	// Use sender_id if this is on the server, or peer_id from packet on client
 	uint16_t actual_id = (sender_id != 0) ? sender_id : peer_id;
+
+	// Single Mode has one shared, host-authoritative player. Clients apply the
+	// host's position to their local player instead of creating a remote sprite.
+	if (IsModeActive(MultiplayerMode::Single)) {
+		auto& net = NetManager::Instance();
+		if (!net.IsHost() && actual_id == 1 && Main_Data::game_player) {
+			if (map_id != Game_Map::GetMapId()) {
+				smooth_player_target_valid = false;
+				Main_Data::game_player->ReserveTeleport(map_id, x, y, direction, TeleportTarget::eParallelTeleport);
+			} else if (!smooth_player_target_valid ||
+				std::abs(x - Main_Data::game_player->GetX()) > 2 ||
+				std::abs(y - Main_Data::game_player->GetY()) > 2) {
+				smooth_player_target_valid = false;
+				Main_Data::game_player->MoveTo(map_id, x, y);
+				Main_Data::game_player->SetDirection(direction);
+				Main_Data::game_player->SetFacing(facing);
+			} else {
+				QueueSmoothPlayerTarget(map_id, x, y, direction, facing);
+			}
+			if (!sprite_name.empty()) {
+				Main_Data::game_player->SetSpriteGraphic(sprite_name, sprite_index);
+			}
+		}
+		return;
+	}
 
 	auto* rp = GetRemotePlayer(actual_id);
 	if (!rp) {
@@ -771,6 +844,293 @@ void MultiplayerState::HandlePlayerPosition(uint16_t sender_id, const uint8_t* d
 			}
 		}
 	}
+}
+
+void MultiplayerState::HandleSharedPlayerInput(uint16_t sender_id, const uint8_t* data, size_t len) {
+	if (!NetManager::Instance().IsHost() || !IsModeActive(MultiplayerMode::Single) ||
+		!Main_Data::game_player || !Scene::instance || Scene::instance->type != Scene::Map) return;
+
+	PacketReader reader(data, len);
+	reader.readType();
+	const uint16_t peer_id = reader.readU16();
+	const uint8_t dir4 = reader.readU8();
+	if (!reader.ok() || peer_id != sender_id) return;
+
+	int direction = -1;
+	switch (dir4) {
+		case 2: direction = Game_Character::Down; break;
+		case 4: direction = Game_Character::Left; break;
+		case 6: direction = Game_Character::Right; break;
+		case 8: direction = Game_Character::Up; break;
+		default: return;
+	}
+	if (CustomMode::Instance().IsActive()) {
+		const int reversed = CustomMode::Instance().ReverseDir4(dir4);
+		switch (reversed) {
+			case 2: direction = Game_Character::Down; break;
+			case 4: direction = Game_Character::Left; break;
+			case 6: direction = Game_Character::Right; break;
+			case 8: direction = Game_Character::Up; break;
+			default: return;
+		}
+	}
+	Main_Data::game_player->Move(direction);
+	SendLocalPlayerPosition();
+}
+
+void MultiplayerState::HandleRewindInput(uint16_t sender_id, const uint8_t* data, size_t len) {
+	if (!NetManager::Instance().IsHost() || !IsModeActive(MultiplayerMode::Rewind)) return;
+	PacketReader reader(data, len);
+	reader.readType();
+	const uint16_t peer_id = reader.readU16();
+	const bool pressed = reader.readU8() != 0;
+	if (!reader.ok() || peer_id != sender_id) return;
+	if (pressed) rewind_holders.insert(peer_id);
+	else rewind_holders.erase(peer_id);
+}
+
+void MultiplayerState::BroadcastRewindStatus(bool active_state) {
+	PacketWriter packet(PacketType::RewindStatus);
+	packet.write(static_cast<uint8_t>(active_state ? 1 : 0));
+	NetManager::Instance().Broadcast(packet, true);
+}
+
+void MultiplayerState::HandleRewindStatus(const uint8_t* data, size_t len) {
+	if (NetManager::Instance().IsHost()) return;
+	PacketReader reader(data, len);
+	reader.readType();
+	const bool active_state = reader.readU8() != 0;
+	if (reader.ok()) rewind_active = active_state;
+}
+
+void MultiplayerState::CaptureRewindSnapshot() {
+	if (!NetManager::Instance().IsHost() || !Main_Data::game_player) return;
+	RewindSnapshot snapshot;
+	snapshot.map_id = Game_Map::GetMapId();
+
+	const auto add_player = [&snapshot](uint16_t peer_id, const Game_Character& player,
+			int map_id, const std::string& sprite_name, int sprite_index) {
+		RewindPlayerSnapshot state;
+		state.peer_id = peer_id;
+		state.map_id = map_id;
+		state.x = player.GetX();
+		state.y = player.GetY();
+		state.direction = player.GetDirection();
+		state.facing = player.GetFacing();
+		state.sprite_name = sprite_name;
+		state.sprite_index = sprite_index;
+		snapshot.players.push_back(std::move(state));
+	};
+
+	auto& net = NetManager::Instance();
+	add_player(net.GetLocalPeerId(), *Main_Data::game_player, Game_Map::GetMapId(),
+		Main_Data::game_player->GetSpriteName(), Main_Data::game_player->GetSpriteIndex());
+	for (const auto& [peer_id, player] : remote_players) {
+		if (!player) continue;
+		add_player(peer_id, *player, player->GetMapId(), player->GetSpriteName(), player->GetSpriteIndex());
+	}
+
+	if (Main_Data::game_switches) snapshot.switches = Main_Data::game_switches->GetData();
+	if (Main_Data::game_variables) snapshot.variables = Main_Data::game_variables->GetData();
+	rewind_history.push_back(std::move(snapshot));
+	while (rewind_history.size() > REWIND_MAX_SNAPSHOTS) rewind_history.pop_front();
+}
+
+void MultiplayerState::ApplyRewindSnapshot(const RewindSnapshot& snapshot) {
+	auto& net = NetManager::Instance();
+	const auto local_id = net.GetLocalPeerId();
+
+	for (const auto& state : snapshot.players) {
+		if (state.peer_id == local_id && Main_Data::game_player) {
+			if (state.map_id != Game_Map::GetMapId()) {
+				smooth_player_target_valid = false;
+				Main_Data::game_player->ReserveTeleport(state.map_id, state.x, state.y,
+					state.direction, TeleportTarget::eParallelTeleport);
+			} else if (!smooth_player_target_valid ||
+				std::abs(state.x - Main_Data::game_player->GetX()) > 2 ||
+				std::abs(state.y - Main_Data::game_player->GetY()) > 2) {
+				smooth_player_target_valid = false;
+				Main_Data::game_player->MoveTo(state.map_id, state.x, state.y);
+				Main_Data::game_player->SetDirection(state.direction);
+				Main_Data::game_player->SetFacing(state.facing);
+			} else {
+				QueueSmoothPlayerTarget(state.map_id, state.x, state.y, state.direction, state.facing);
+			}
+			if (!state.sprite_name.empty()) {
+				Main_Data::game_player->SetSpriteGraphic(state.sprite_name, state.sprite_index);
+			}
+			continue;
+		}
+
+		auto* remote = GetRemotePlayer(state.peer_id);
+		if (!remote) continue;
+		const bool was_on_map = remote->IsOnCurrentMap();
+		remote->SetNetworkPosition(state.map_id, state.x, state.y, state.direction, state.facing);
+		if (!state.sprite_name.empty()) remote->SetCharacterSprite(state.sprite_name, state.sprite_index);
+		const bool is_on_map = remote->IsOnCurrentMap();
+		if (current_spriteset) {
+			if (!was_on_map && is_on_map) CreateRemotePlayerSprite(remote);
+			else if (was_on_map && !is_on_map) RemoveRemotePlayerSprite(state.peer_id);
+		}
+	}
+
+	if (Main_Data::game_switches) {
+		Main_Data::game_switches->SetData(snapshot.switches);
+		Game_Map::SetNeedRefresh(true);
+	}
+	if (Main_Data::game_variables) {
+		Main_Data::game_variables->SetData(snapshot.variables);
+		Game_Map::SetNeedRefresh(true);
+	}
+}
+
+void MultiplayerState::QueueSmoothPlayerTarget(int map_id, int x, int y, int direction, int facing) {
+	smooth_player_target_map = map_id;
+	smooth_player_target_x = x;
+	smooth_player_target_y = y;
+	smooth_player_target_direction = direction;
+	smooth_player_target_facing = facing;
+	smooth_player_target_valid = true;
+}
+
+void MultiplayerState::UpdateSmoothPlayerTarget() {
+	if (!smooth_player_target_valid || !Main_Data::game_player) return;
+	if (smooth_player_target_map != Game_Map::GetMapId()) {
+		smooth_player_target_valid = false;
+		return;
+	}
+
+	auto& player = *Main_Data::game_player;
+	const int dx = smooth_player_target_x - player.GetX();
+	const int dy = smooth_player_target_y - player.GetY();
+	if (dx == 0 && dy == 0) {
+		player.SetDirection(smooth_player_target_direction);
+		player.SetFacing(smooth_player_target_facing);
+		return;
+	}
+	if (!player.IsStopping()) return;
+
+	int direction = Game_Character::Down;
+	if (dx > 0 && dy > 0) direction = Game_Character::DownRight;
+	else if (dx > 0 && dy < 0) direction = Game_Character::UpRight;
+	else if (dx < 0 && dy > 0) direction = Game_Character::DownLeft;
+	else if (dx < 0 && dy < 0) direction = Game_Character::UpLeft;
+	else if (dx > 0) direction = Game_Character::Right;
+	else if (dx < 0) direction = Game_Character::Left;
+	else if (dy < 0) direction = Game_Character::Up;
+
+	player.SetThrough(true);
+	player.Game_Character::Move(direction);
+	player.ResetThrough();
+}
+
+void MultiplayerState::BroadcastRewindSnapshot(const RewindSnapshot& snapshot) {
+	PacketWriter packet(PacketType::RewindSnapshot);
+	packet.write(++rewind_sequence);
+	packet.write(static_cast<int32_t>(snapshot.map_id));
+	packet.write(static_cast<uint16_t>(std::min<size_t>(snapshot.players.size(), UINT16_MAX)));
+	for (size_t i = 0; i < snapshot.players.size() && i < UINT16_MAX; ++i) {
+		const auto& player = snapshot.players[i];
+		packet.write(player.peer_id);
+		packet.write(static_cast<int32_t>(player.map_id));
+		packet.write(static_cast<int32_t>(player.x));
+		packet.write(static_cast<int32_t>(player.y));
+		packet.write(static_cast<int32_t>(player.direction));
+		packet.write(static_cast<int32_t>(player.facing));
+		packet.write(player.sprite_name);
+		packet.write(static_cast<int32_t>(player.sprite_index));
+	}
+	packet.write(static_cast<uint16_t>(std::min<size_t>(snapshot.switches.size(), UINT16_MAX)));
+	for (size_t i = 0; i < snapshot.switches.size() && i < UINT16_MAX; ++i) {
+		packet.write(static_cast<uint8_t>(snapshot.switches[i] ? 1 : 0));
+	}
+	packet.write(static_cast<uint16_t>(std::min<size_t>(snapshot.variables.size(), UINT16_MAX)));
+	for (size_t i = 0; i < snapshot.variables.size() && i < UINT16_MAX; ++i) {
+		packet.write(snapshot.variables[i]);
+	}
+	NetManager::Instance().Broadcast(packet, false);
+}
+
+void MultiplayerState::HandleRewindSnapshot(const uint8_t* data, size_t len) {
+	if (NetManager::Instance().IsHost()) return;
+	PacketReader reader(data, len);
+	reader.readType();
+	const uint32_t sequence = reader.readU32();
+	if (sequence <= last_rewind_sequence) return;
+	const int map_id = reader.readI32();
+	const uint16_t player_count = reader.readU16();
+	if (!reader.ok() || player_count > 64) return;
+
+	RewindSnapshot snapshot;
+	snapshot.map_id = map_id;
+	for (uint16_t i = 0; i < player_count; ++i) {
+		RewindPlayerSnapshot player;
+		player.peer_id = reader.readU16();
+		player.map_id = reader.readI32();
+		player.x = reader.readI32();
+		player.y = reader.readI32();
+		player.direction = reader.readI32();
+		player.facing = reader.readI32();
+		player.sprite_name = reader.readString();
+		player.sprite_index = reader.readI32();
+		snapshot.players.push_back(std::move(player));
+	}
+	const uint16_t switch_count = reader.readU16();
+	if (switch_count > 65535) return;
+	snapshot.switches.reserve(switch_count);
+	for (uint16_t i = 0; i < switch_count; ++i) snapshot.switches.push_back(reader.readU8() != 0);
+	const uint16_t variable_count = reader.readU16();
+	snapshot.variables.reserve(variable_count);
+	for (uint16_t i = 0; i < variable_count; ++i) snapshot.variables.push_back(reader.readI32());
+	if (!reader.ok()) return;
+	last_rewind_sequence = sequence;
+	rewind_active = true;
+	ApplyRewindSnapshot(snapshot);
+}
+
+void MultiplayerState::UpdateRewind() {
+	if (!IsModeActive(MultiplayerMode::Rewind)) return;
+	auto& net = NetManager::Instance();
+	const bool in_map = Scene::instance && Scene::instance->type == Scene::Map;
+	const bool pressed = in_map && !MultiplayerChat::Instance().IsInputActive() &&
+		Input::IsRawKeyPressed(Input::Keys::COMMA);
+	if (pressed != local_rewind_pressed) {
+		local_rewind_pressed = pressed;
+		if (net.IsHost()) {
+			if (pressed) rewind_holders.insert(net.GetLocalPeerId());
+			else rewind_holders.erase(net.GetLocalPeerId());
+		} else {
+			PacketWriter packet(PacketType::RewindInput);
+			packet.write(net.GetLocalPeerId());
+			packet.write(static_cast<uint8_t>(pressed ? 1 : 0));
+			net.SendToServer(packet, true);
+		}
+	}
+	if (!net.IsHost() || !current_spriteset) return;
+
+	const bool wants_rewind = !rewind_holders.empty();
+	if (rewind_active && !wants_rewind) {
+		rewind_active = false;
+		rewind_cooldown_frames = REWIND_COOLDOWN_FRAMES;
+		rewind_history.clear();
+		rewind_cursor = 0;
+		BroadcastRewindStatus(false);
+	}
+	if (!rewind_active) {
+		CaptureRewindSnapshot();
+		if (rewind_cooldown_frames > 0) {
+			--rewind_cooldown_frames;
+			return;
+		}
+		if (!wants_rewind || rewind_history.empty()) return;
+		rewind_active = true;
+		rewind_cursor = rewind_history.size() - 1;
+		BroadcastRewindStatus(true);
+	}
+
+	for (int step = 0; step < 3 && rewind_cursor > 0; ++step) --rewind_cursor;
+	ApplyRewindSnapshot(rewind_history[rewind_cursor]);
+	BroadcastRewindSnapshot(rewind_history[rewind_cursor]);
 }
 
 void MultiplayerState::HandleSwitchSync(const uint8_t* data, size_t len) {
@@ -1004,6 +1364,15 @@ void MultiplayerState::SendLocalPlayerPosition() {
 	}
 }
 
+void MultiplayerState::SendSharedPlayerInput() {
+	if (NetManager::Instance().IsHost() || !Scene::instance ||
+		Scene::instance->type != Scene::Map || Input::dir4 == 0) return;
+	PacketWriter packet(PacketType::SharedPlayerInput);
+	packet.write(NetManager::Instance().GetLocalPeerId());
+	packet.write(static_cast<uint8_t>(Input::dir4));
+	NetManager::Instance().SendToServer(packet, false);
+}
+
 void MultiplayerState::CheckAndSyncSwitches() {
 	if (!Main_Data::game_switches) return;
 
@@ -1061,7 +1430,7 @@ void MultiplayerState::CheckAndSyncVariables() {
 }
 
 void MultiplayerState::CreateRemotePlayerSprite(Game_RemotePlayer* player) {
-	if (!current_spriteset || !player || !player->IsOnCurrentMap()) return;
+	if (!current_spriteset || !player || !player->IsOnCurrentMap() || IsModeActive(MultiplayerMode::Single)) return;
 
 	if (CustomMode::Instance().IsForcedSkinActive()) {
 		player->SetCharacterSprite(CustomMode::Instance().GetForcedSkinName(), CustomMode::Instance().GetForcedSkinIndex());
@@ -1218,6 +1587,10 @@ void MultiplayerState::CycleSpectateTarget(int direction) {
 }
 
 void MultiplayerState::UpdateSpectator() {
+	if (Input::IsRawKeyTriggered(Input::Keys::X)) {
+		ExitSpectatorMode();
+		return;
+	}
 	auto* target = GetRemotePlayer(spectate_target_id);
 	if (!target) {
 		CycleSpectateTarget(1);

@@ -96,6 +96,16 @@ enum class PacketType : uint8_t {
 	RadioCustomBegin,   // Client -> Host or Host -> All: custom music metadata
 	RadioCustomChunk,   // Client -> Host or Host -> All: custom music data
 	RadioCustomComplete,// Client -> Host or Host -> All: custom music finished
+	RadioSkipRequest,   // Client -> Host: host/admin immediate skip
+	RadioSkipVote,      // Client -> Host: vote to skip the current track
+	SharedPlayerInput,  // Client -> Host: movement input for Single Mode
+	RewindInput,        // Client -> Host: rewind key state
+	RewindStatus,       // Host -> All: rewind active/inactive state
+	RewindSnapshot,     // Host -> All: authoritative historical game state
+	BoomboxState,       // Player -> Host -> All: player-specific music state
+	BoomboxCustomBegin, // Client -> Host or Host -> All: boombox custom metadata
+	BoomboxCustomChunk, // Client -> Host or Host -> All: boombox custom data
+	BoomboxCustomComplete, // Client -> Host or Host -> All: boombox custom finished
 };
 
 // Simple packet buffer for serialization

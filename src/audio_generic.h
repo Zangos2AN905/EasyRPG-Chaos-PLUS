@@ -63,9 +63,13 @@ public:
 	void SE_Stop() override;
 
 	void BGS_Play(Filesystem_Stream::InputStream stream, int volume, int pitch, int balance) override;
+	void BGS_PlayChannel(int channel, Filesystem_Stream::InputStream stream, int volume, int pitch, int balance) override;
 	void BGS_Stop() override;
+	void BGS_StopChannel(int channel) override;
 	void BGS_Volume(int volume) override;
+	void BGS_ChannelVolume(int channel, int volume) override;
 	void BGS_Balance(int balance) override;
+	void BGS_ChannelBalance(int channel, int balance) override;
 
 	virtual void Update() override;
 
@@ -119,6 +123,8 @@ private:
 
 	BgmChannel BGM_Channels[nr_of_bgm_channels];
 	BgmChannel bgs_channel;
+	static constexpr unsigned nr_of_boombox_channels = 8;
+	BgmChannel boombox_channels[nr_of_boombox_channels];
 	SeChannel SE_Channels[nr_of_se_channels];
 	mutable bool BGM_PlayedOnceIndicator;
 

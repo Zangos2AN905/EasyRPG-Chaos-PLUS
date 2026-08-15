@@ -53,6 +53,7 @@ public:
 
 	/** Whether battle sync applies (Single/TeamParty/Chaotix, directly or via Custom mix) */
 	bool IsBattleSyncMode() const;
+	bool IsRewinding() const { return rewind_active; }
 
 	/** Whether the host has disconnected (for clients) */
 	bool IsHostDisconnected() const { return host_lost; }
@@ -187,6 +188,7 @@ public:
 
 private:
 	MultiplayerState() = default;
+	struct RewindSnapshot;
 
 	void SetupCallbacks();
 
@@ -197,6 +199,10 @@ private:
 
 	// Packet handlers
 	void HandlePlayerPosition(uint16_t sender_id, const uint8_t* data, size_t len);
+	void HandleSharedPlayerInput(uint16_t sender_id, const uint8_t* data, size_t len);
+	void HandleRewindInput(uint16_t sender_id, const uint8_t* data, size_t len);
+	void HandleRewindStatus(const uint8_t* data, size_t len);
+	void HandleRewindSnapshot(const uint8_t* data, size_t len);
 	void HandleSwitchSync(const uint8_t* data, size_t len);
 	void HandleVariableSync(const uint8_t* data, size_t len);
 	void HandleGodCommand(uint16_t sender_id, const uint8_t* data, size_t len);
@@ -222,6 +228,14 @@ private:
 
 	// Sync functions
 	void SendLocalPlayerPosition();
+	void SendSharedPlayerInput();
+	void UpdateRewind();
+	void CaptureRewindSnapshot();
+	void ApplyRewindSnapshot(const RewindSnapshot& snapshot);
+	void BroadcastRewindStatus(bool active_state);
+	void BroadcastRewindSnapshot(const RewindSnapshot& snapshot);
+	void QueueSmoothPlayerTarget(int map_id, int x, int y, int direction, int facing);
+	void UpdateSmoothPlayerTarget();
 	void CheckAndSyncSwitches();
 	void CheckAndSyncVariables();
 	void SyncEventPositions();
@@ -263,6 +277,39 @@ private:
 	std::map<uint16_t, std::unique_ptr<Game_RemotePlayer>> remote_players;
 	std::set<uint16_t> admin_peers;
 	std::set<uint16_t> noclip_peers;
+
+	struct RewindPlayerSnapshot {
+		uint16_t peer_id = 0;
+		int map_id = 0;
+		int x = 0;
+		int y = 0;
+		int direction = 2;
+		int facing = 2;
+		std::string sprite_name;
+		int sprite_index = 0;
+	};
+	struct RewindSnapshot {
+		int map_id = 0;
+		std::vector<RewindPlayerSnapshot> players;
+		std::vector<bool> switches;
+		std::vector<int32_t> variables;
+	};
+	std::deque<RewindSnapshot> rewind_history;
+	std::set<uint16_t> rewind_holders;
+	size_t rewind_cursor = 0;
+	uint32_t rewind_sequence = 0;
+	uint32_t last_rewind_sequence = 0;
+	int rewind_cooldown_frames = 0;
+	bool rewind_active = false;
+	bool local_rewind_pressed = false;
+	bool smooth_player_target_valid = false;
+	int smooth_player_target_map = 0;
+	int smooth_player_target_x = 0;
+	int smooth_player_target_y = 0;
+	int smooth_player_target_direction = 2;
+	int smooth_player_target_facing = 2;
+	static constexpr size_t REWIND_MAX_SNAPSHOTS = 15 * 60;
+	static constexpr int REWIND_COOLDOWN_FRAMES = 5 * 60;
 
 	// Spectator state
 	bool spectating = false;

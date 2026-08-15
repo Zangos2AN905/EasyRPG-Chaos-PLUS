@@ -29,6 +29,9 @@
 #include "scene_map.h"
 #include "scene_teleport.h"
 #include "output.h"
+#include "chaos/scene_radio.h"
+#include "chaos/scene_spy_tablet.h"
+#include "chaos/multiplayer_state.h"
 #include "transition.h"
 #include "player.h"
 
@@ -41,10 +44,24 @@ void Scene_Item::Start() {
 	// Create the windows
 	int menu_help_height = 32;
 	help_window.reset(new Window_Help(Player::menu_offset_x, Player::menu_offset_y, MENU_WIDTH, menu_help_height));
-	item_window.reset(new Window_Item(Player::menu_offset_x, Player::menu_offset_y + menu_help_height, MENU_WIDTH, MENU_HEIGHT - menu_help_height));
+	const bool multiplayer_items = Chaos::MultiplayerState::Instance().IsActive();
+	const int multiplayer_item_height = multiplayer_items ? 48 : 0;
+	if (multiplayer_items) {
+		multiplayer_item_window = std::make_unique<Window_Command>(std::vector<std::string>{"Boombox", "Spy Tablet"}, MENU_WIDTH);
+		multiplayer_item_window->SetX(Player::menu_offset_x);
+		multiplayer_item_window->SetY(Player::menu_offset_y + menu_help_height);
+		multiplayer_item_window->SetHeight(multiplayer_item_height);
+	}
+	item_window.reset(new Window_Item(Player::menu_offset_x,
+		Player::menu_offset_y + menu_help_height + multiplayer_item_height,
+		MENU_WIDTH, MENU_HEIGHT - menu_help_height - multiplayer_item_height));
 	item_window->SetHelpWindow(help_window.get());
 	item_window->Refresh();
 	item_window->SetIndex(item_index);
+	if (multiplayer_item_window) {
+		item_window->SetActive(false);
+		item_window->SetVisible(false);
+	}
 }
 
 void Scene_Item::Continue(SceneType /* prev_scene */) {
@@ -53,6 +70,28 @@ void Scene_Item::Continue(SceneType /* prev_scene */) {
 
 void Scene_Item::vUpdate() {
 	help_window->Update();
+	if (multiplayer_item_window && multiplayer_item_window->GetActive()) {
+		const int old_index = multiplayer_item_window->GetIndex();
+		multiplayer_item_window->Update();
+		if (Input::IsTriggered(Input::CANCEL)) {
+			Main_Data::game_system->SePlay(Main_Data::game_system->GetSystemSE(Main_Data::game_system->SFX_Cancel));
+			Scene::Pop();
+		} else if (Input::IsTriggered(Input::DECISION)) {
+			Main_Data::game_system->SePlay(Main_Data::game_system->GetSystemSE(Main_Data::game_system->SFX_Decision));
+			if (multiplayer_item_window->GetIndex() == 0) {
+				Scene::Push(std::make_shared<Chaos::Scene_Radio>(true));
+			} else {
+				Scene::Push(std::make_shared<Chaos::Scene_SpyTablet>());
+			}
+		} else if (Input::IsTriggered(Input::DOWN) && old_index == 1) {
+			multiplayer_item_window->SetActive(false);
+			multiplayer_item_window->SetVisible(false);
+			item_window->SetActive(true);
+			item_window->SetVisible(true);
+			item_window->SetIndex(0);
+		}
+		return;
+	}
 	item_window->Update();
 
 	if (Input::IsTriggered(Input::CANCEL)) {

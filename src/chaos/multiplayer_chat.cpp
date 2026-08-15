@@ -563,6 +563,10 @@ void MultiplayerChat::UpdateChatBubbles() {
 }
 
 void MultiplayerChat::UpdatePlayerNames() {
+	if (MultiplayerState::Instance().IsModeActive(MultiplayerMode::Single)) {
+		for (auto& [peer_id, label] : player_name_labels) label->SetVisible(false);
+		return;
+	}
 	const auto& remote_players = MultiplayerState::Instance().GetRemotePlayers();
 	for (const auto& [peer_id, player] : remote_players) {
 		if (!player || !player->IsOnCurrentMap() || !player->IsVisible()) {

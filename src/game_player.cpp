@@ -301,6 +301,9 @@ bool Game_Player::UpdateAirship() {
 
 void Game_Player::UpdateNextMovementAction() {
 	if (Chaos::MultiplayerState::Instance().IsSpectating()) return;
+	if (Chaos::MultiplayerState::Instance().IsModeActive(Chaos::MultiplayerMode::Single) &&
+		!Chaos::NetManager::Instance().IsHost()) return;
+	if (Chaos::MultiplayerState::Instance().IsRewinding()) return;
 	if (UpdateAirship()) {
 		return;
 	}

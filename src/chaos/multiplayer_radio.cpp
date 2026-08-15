@@ -5,11 +5,15 @@
 #include "chaos/multiplayer_radio.h"
 #include "chaos/net_manager.h"
 #include "chaos/net_packet.h"
+#include "chaos/multiplayer_chat.h"
+#include "chaos/multiplayer_state.h"
 #include "audio.h"
 #include "filefinder.h"
 #include "game_system.h"
 #include "main_data.h"
 #include "output.h"
+#include "input.h"
+#include "scene.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -58,23 +62,28 @@ void MultiplayerRadio::Start() {
 	playing_track_id = 0;
 	playback_grace_frames = 0;
 	queue.clear();
+	skip_votes.clear();
 	custom_data.clear();
 	pending_uploads.clear();
 	incoming_downloads.clear();
 	saved_bgm_valid = false;
+	restoring_game_music = false;
 	RefreshAvailableTracks();
 }
 
 void MultiplayerRadio::Stop() {
 	if (!active) return;
-	if (!queue.empty()) RestoreGameMusic();
-	active = false;
+	const bool had_queue = !queue.empty();
 	queue.clear();
+	skip_votes.clear();
+	if (had_queue) RestoreGameMusic();
+	active = false;
 	custom_data.clear();
 	pending_uploads.clear();
 	incoming_downloads.clear();
 	playing_track_id = 0;
 	saved_bgm_valid = false;
+	restoring_game_music = false;
 	Audio().BGM_SetLooping(true);
 }
 
@@ -87,8 +96,6 @@ void MultiplayerRadio::OnMapLoaded() {
 	saved_bgm.fadein = music.fadein;
 	saved_bgm.balance = music.balance;
 	saved_bgm_valid = true;
-	Audio().BGM_Stop();
-	playing_track_id = 0;
 }
 
 void MultiplayerRadio::RefreshAvailableTracks() {
@@ -129,6 +136,12 @@ bool MultiplayerRadio::SubmitGameTrack(size_t index) {
 		net.SendToServer(packet, true);
 	}
 	return true;
+}
+
+int MultiplayerRadio::GetSkipVoteRequired() const {
+	const auto& net = NetManager::Instance();
+	const size_t player_count = 1 + net.GetPeers().size();
+	return static_cast<int>(player_count / 2 + 1);
 }
 
 bool MultiplayerRadio::SubmitCustomMusic(const std::string& filename) {
@@ -221,6 +234,7 @@ void MultiplayerRadio::AddTrack(RadioTrack track) {
 		saved_bgm_valid = true;
 	}
 	queue.push_back(std::move(track));
+	skip_votes.clear();
 	BroadcastQueue();
 }
 
@@ -252,6 +266,7 @@ void MultiplayerRadio::ApplyQueue(const std::deque<RadioTrack>& new_queue) {
 		saved_bgm_valid = true;
 	}
 	queue = new_queue;
+	if (old_front != new_front) skip_votes.clear();
 	if (new_queue.empty()) {
 		playing_track_id = 0;
 		if (old_front != 0 || saved_bgm_valid) RestoreGameMusic();
@@ -285,13 +300,68 @@ void MultiplayerRadio::AdvanceTrack() {
 	Audio().BGM_Stop();
 	playing_track_id = 0;
 	queue.pop_front();
+	skip_votes.clear();
+	if (queue.empty()) RestoreGameMusic();
 	BroadcastQueue();
 }
 
+void MultiplayerRadio::HandleSkipInput() {
+	if (!active || queue.empty() || MultiplayerChat::Instance().IsInputActive() ||
+		!Scene::instance || Scene::instance->type != Scene::Radio) return;
+	auto& net = NetManager::Instance();
+	const auto local_peer_id = net.GetLocalPeerId();
+	if (Input::IsRawKeyTriggered(Input::Keys::MINUS)) {
+		if (net.IsHost()) {
+			if (MultiplayerState::Instance().IsAdmin(local_peer_id)) AdvanceTrack();
+		} else if (MultiplayerState::Instance().IsAdmin(local_peer_id)) {
+			PacketWriter packet(PacketType::RadioSkipRequest);
+			packet.write(local_peer_id);
+			net.SendToServer(packet, true);
+		}
+	}
+	if (Input::IsRawKeyTriggered(Input::Keys::N0)) SubmitSkipVote();
+}
+
+void MultiplayerRadio::SubmitSkipVote() {
+	auto& net = NetManager::Instance();
+	const auto local_peer_id = net.GetLocalPeerId();
+	if (net.IsHost()) {
+		skip_votes.insert(local_peer_id);
+		if (static_cast<int>(skip_votes.size()) >= GetSkipVoteRequired()) AdvanceTrack();
+		return;
+	}
+	PacketWriter packet(PacketType::RadioSkipVote);
+	packet.write(local_peer_id);
+	net.SendToServer(packet, true);
+}
+
+void MultiplayerRadio::HandleSkipRequest(uint16_t sender_id, const uint8_t* data, size_t len) {
+	if (!NetManager::Instance().IsHost()) return;
+	PacketReader reader(data, len);
+	reader.readType();
+	const auto issuer = reader.readU16();
+	if (!reader.ok() || issuer != sender_id || !MultiplayerState::Instance().IsAdmin(issuer)) return;
+	AdvanceTrack();
+}
+
+void MultiplayerRadio::HandleSkipVote(uint16_t sender_id, const uint8_t* data, size_t len) {
+	if (!NetManager::Instance().IsHost() || queue.empty()) return;
+	PacketReader reader(data, len);
+	reader.readType();
+	const auto issuer = reader.readU16();
+	if (!reader.ok() || issuer != sender_id) return;
+	skip_votes.insert(issuer);
+	if (static_cast<int>(skip_votes.size()) >= GetSkipVoteRequired()) AdvanceTrack();
+}
+
 void MultiplayerRadio::RestoreGameMusic() {
+	restoring_game_music = true;
 	Audio().BGM_Stop();
 	Audio().BGM_SetLooping(true);
-	if (!saved_bgm_valid || !Main_Data::game_system) return;
+	if (!saved_bgm_valid || !Main_Data::game_system) {
+		restoring_game_music = false;
+		return;
+	}
 	const auto music = saved_bgm;
 	saved_bgm_valid = false;
 	Main_Data::game_system->BgmStop();
@@ -304,10 +374,13 @@ void MultiplayerRadio::RestoreGameMusic() {
 		restored.balance = music.balance;
 		Main_Data::game_system->BgmPlay(restored);
 	}
+	restoring_game_music = false;
 }
 
 void MultiplayerRadio::Update() {
-	if (!active || queue.empty()) return;
+	if (!active) return;
+	HandleSkipInput();
+	if (queue.empty()) return;
 	if (playing_track_id != queue.front().id) {
 		StartTrack(queue.front());
 		return;
@@ -506,6 +579,15 @@ void MultiplayerRadio::HandlePacket(uint16_t sender_id, const uint8_t* data, siz
 			WriteCustomFile(track_id, it->second.extension, it->second.data);
 			incoming_downloads.erase(it);
 		}
+	}
+
+	if (type == PacketType::RadioSkipRequest) {
+		HandleSkipRequest(sender_id, data, len);
+		return;
+	}
+
+	if (type == PacketType::RadioSkipVote) {
+		HandleSkipVote(sender_id, data, len);
 	}
 }
 

@@ -77,6 +77,7 @@ const char Scene::scene_names[SceneMax][12] =
 	"SkinSelect",
 	"GMSelect",
 	"Radio",
+	"SpyTablet",
 	"AIChar",
 	"Editor",
 	"RpgStore"
@@ -127,6 +128,7 @@ lcf::rpg::SaveSystem::Scene Scene::rpgRtSceneFromSceneType(SceneType t) {
 		case Debug:
 			return lcf::rpg::SaveSystem::Scene_debug;
 		case Radio:
+		case SpyTablet:
 			break;
 	}
 	return lcf::rpg::SaveSystem::Scene(-1);

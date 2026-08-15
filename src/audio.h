@@ -20,6 +20,7 @@
 
 // Headers
 #include <string>
+#include <utility>
 #include "audio_generic_midiout.h"
 #include "filesystem_stream.h"
 #include "audio_secache.h"
@@ -145,11 +146,15 @@ struct AudioInterface {
 	 * @param balance balance (0 - 100)
 	 */
 	virtual void BGS_Play(Filesystem_Stream::InputStream stream, int volume, int pitch, int balance) = 0;
+	virtual void BGS_PlayChannel(int channel, Filesystem_Stream::InputStream stream, int volume, int pitch, int balance) {
+		if (channel == 0) BGS_Play(std::move(stream), volume, pitch, balance);
+	}
 
 	/**
 	 * Stops the currently playing background sound.
 	 */
 	virtual void BGS_Stop() = 0;
+	virtual void BGS_StopChannel(int channel) { if (channel == 0) BGS_Stop(); }
 
 	/**
 	 * Adjusts the volume of the background sound.
@@ -157,6 +162,7 @@ struct AudioInterface {
 	 * @param volume volume
 	 */
 	virtual void BGS_Volume(int volume) = 0;
+	virtual void BGS_ChannelVolume(int channel, int volume) { if (channel == 0) BGS_Volume(volume); }
 
 	/**
 	 * Adjusts the balance of the background sound.
@@ -164,6 +170,7 @@ struct AudioInterface {
 	 * @param balance balance (0 - 100)
 	 */
 	virtual void BGS_Balance(int balance) = 0;
+	virtual void BGS_ChannelBalance(int channel, int balance) { if (channel == 0) BGS_Balance(balance); }
 
 	/**
 	 * Plays a sound effect.
@@ -219,9 +226,15 @@ public:
 	void BGM_Balance(int) override {}
 	std::string BGM_GetType() const override { return {}; };
 	void BGS_Play(Filesystem_Stream::InputStream, int, int, int) override {}
+	void BGS_PlayChannel(int channel, Filesystem_Stream::InputStream stream, int volume, int pitch, int balance) override {
+		if (channel == 0) BGS_Play(std::move(stream), volume, pitch, balance);
+	}
 	void BGS_Stop() override {}
+	void BGS_StopChannel(int channel) override { if (channel == 0) BGS_Stop(); }
 	void BGS_Volume(int) override {}
+	void BGS_ChannelVolume(int channel, int volume) override { if (channel == 0) BGS_Volume(volume); }
 	void BGS_Balance(int) override {}
+	void BGS_ChannelBalance(int channel, int balance) override { if (channel == 0) BGS_Balance(balance); }
 	void SE_Play(std::unique_ptr<AudioSeCache>, int, int, int) override {}
 	void SE_Stop() override {}
 	void Update() override {}

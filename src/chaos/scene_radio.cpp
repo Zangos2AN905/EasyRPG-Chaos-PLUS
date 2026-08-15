@@ -4,6 +4,7 @@
 
 #include "chaos/scene_radio.h"
 #include "chaos/multiplayer_radio.h"
+#include "chaos/multiplayer_boombox.h"
 #include "game_system.h"
 #include "input.h"
 #include "main_data.h"
@@ -19,7 +20,8 @@
 
 namespace Chaos {
 
-Scene_Radio::Scene_Radio() {
+Scene_Radio::Scene_Radio(bool boombox)
+	: boombox(boombox) {
 	type = Scene::Radio;
 }
 
@@ -32,12 +34,12 @@ void Scene_Radio::Start() {
 
 void Scene_Radio::CreateWindows() {
 	help_window = std::make_unique<Window_Help>(0, 0, Player::screen_width, 32);
-	help_window->SetText("Radio - select a song to add it to the queue");
+	help_window->SetText(boombox ? "Boombox - select music to play nearby" : "Radio - select a song to add it to the queue");
 
 	queue_window = std::make_unique<Window_Help>(0, 32, Player::screen_width, 48);
 	queue_window->SetBackOpacity(160);
 
-	const auto count = static_cast<int>(MultiplayerRadio::Instance().GetAvailableTracks().size()) + 1;
+	const auto count = static_cast<int>(MultiplayerRadio::Instance().GetAvailableTracks().size()) + (boombox ? 2 : 1);
 	list_window = std::make_unique<Window_Command>(std::vector<std::string>(count), Player::screen_width);
 	list_window->SetX(0);
 	list_window->SetY(80);
@@ -46,9 +48,10 @@ void Scene_Radio::CreateWindows() {
 
 void Scene_Radio::RefreshList() {
 	list_window->SetItemText(0, "<Add custom music>");
+	if (boombox) list_window->SetItemText(1, "<Turn off boombox>");
 	const auto& tracks = MultiplayerRadio::Instance().GetAvailableTracks();
 	for (size_t i = 0; i < tracks.size(); ++i) {
-		list_window->SetItemText(static_cast<int>(i + 1), tracks[i].name);
+		list_window->SetItemText(static_cast<int>(i + (boombox ? 2 : 1)), tracks[i].name);
 	}
 }
 
@@ -110,15 +113,27 @@ void Scene_Radio::vUpdate() {
 	if (index == 0) {
 		std::string path;
 		if (!SelectCustomMusicFile(path)) return;
-		if (!MultiplayerRadio::Instance().SubmitCustomMusic(path)) {
+		const bool imported = boombox
+			? MultiplayerBoombox::Instance().SubmitCustomMusic(path)
+			: MultiplayerRadio::Instance().SubmitCustomMusic(path);
+		if (!imported) {
 			help_window->SetText("Could not import music. MP3, OGG, WAV and MIDI files must be under 15 MiB.");
 		} else {
 			help_window->SetText("Music submitted to the radio queue.");
 		}
 		return;
 	}
+	if (boombox && index == 1) {
+		MultiplayerBoombox::Instance().StopLocal();
+		help_window->SetText("Boombox stopped.");
+		return;
+	}
 
-	if (MultiplayerRadio::Instance().SubmitGameTrack(static_cast<size_t>(index - 1))) {
+	const int track_offset = boombox ? 2 : 1;
+	const bool submitted = boombox
+		? MultiplayerBoombox::Instance().SubmitTrack(static_cast<size_t>(index - track_offset))
+		: MultiplayerRadio::Instance().SubmitGameTrack(static_cast<size_t>(index - track_offset));
+	if (submitted) {
 		help_window->SetText("Music submitted to the radio queue.");
 		RefreshQueue();
 	}
