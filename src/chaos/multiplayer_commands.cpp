@@ -3,6 +3,7 @@
  */
 
 #include "chaos/multiplayer_commands.h"
+#include "chaos/multiplayer_ai.h"
 #include "chaos/multiplayer_state.h"
 #include "chaos/net_manager.h"
 #include "chaos/net_packet.h"
@@ -201,6 +202,34 @@ bool Execute(const ParsedCommand& command, uint16_t issuer, bool from_network) {
 			else return false;
 		}
 		for (const auto target : targets) state.SetNoclipEnabled(target, enabled);
+		return true;
+	}
+
+	if (command.name == "ai") {
+		if (command.args.size() > 1) return false;
+		int count = 1;
+		if (command.args.size() == 1 && !ParseInt(command.args[0], count)) return false;
+		count = std::clamp(count, 1, 16);
+		if (net.IsHost()) MultiplayerAi::Instance().Spawn(count);
+		return true;
+	}
+
+	if (command.name == "stopai") {
+		if (!command.args.empty()) return false;
+		MultiplayerAi::Instance().Clear();
+		return true;
+	}
+
+	if (command.name == "aismart") {
+		if (command.args.size() > 1) return false;
+		bool enabled = !MultiplayerAi::Instance().IsSmart();
+		if (command.args.size() == 1) {
+			const auto value = Lower(command.args[0]);
+			if (value == "on" || value == "1") enabled = true;
+			else if (value == "off" || value == "0") enabled = false;
+			else return false;
+		}
+		MultiplayerAi::Instance().SetSmart(enabled);
 		return true;
 	}
 

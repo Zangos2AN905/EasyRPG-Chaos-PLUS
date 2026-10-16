@@ -12,8 +12,6 @@
 #include "game_map.h"
 #include "game_player.h"
 #include "main_data.h"
-#include "game_system.h"
-#include "lcf/rpg/music.h"
 #include <algorithm>
 #include <cmath>
 #include <set>
@@ -25,7 +23,7 @@ namespace Chaos {
 
 namespace {
 constexpr int kMaxDistance = 12;
-constexpr int kMaxChannels = 16;
+constexpr int kMaxChannels = 8;
 constexpr size_t kMaxCustomMusicSize = 15 * 1024 * 1024;
 constexpr size_t kChunkSize = 16 * 1024;
 
@@ -58,14 +56,11 @@ void MultiplayerBoombox::Start() {
 	pending_uploads.clear();
 	incoming_uploads.clear();
 	custom_paths.clear();
-	restoring_game_music = false;
-	saved_bgm_valid = false;
 }
 
 void MultiplayerBoombox::Stop() {
 	if (!active) return;
 	for (const auto& [peer_id, slot] : slots) Audio().BGS_StopChannel(slot);
-	if (HasActiveSource()) RestoreGameMusic();
 	active = false;
 	states.clear();
 	slots.clear();
@@ -73,15 +68,6 @@ void MultiplayerBoombox::Stop() {
 	pending_uploads.clear();
 	incoming_uploads.clear();
 	custom_paths.clear();
-	restoring_game_music = false;
-	saved_bgm_valid = false;
-}
-
-bool MultiplayerBoombox::HasActiveSource() const {
-	for (const auto& [peer_id, state] : states) {
-		if (state.active) return true;
-	}
-	return false;
 }
 
 int MultiplayerBoombox::GetSlot(uint16_t peer_id) {
@@ -179,7 +165,6 @@ void MultiplayerBoombox::SendState(uint16_t peer_id, bool is_active, const std::
 }
 
 void MultiplayerBoombox::SetState(uint16_t peer_id, bool is_active, const std::string& path, bool broadcast) {
-	const bool had_active_source = HasActiveSource();
 	if (is_active) {
 		bool valid = false;
 		for (const auto& track : MultiplayerRadio::Instance().GetAvailableTracks()) {
@@ -191,39 +176,7 @@ void MultiplayerBoombox::SetState(uint16_t peer_id, bool is_active, const std::s
 		if (!valid && custom_paths.count(path) == 0) return;
 	}
 	states[peer_id] = {is_active, path};
-	if (!had_active_source && is_active && Main_Data::game_system && !saved_bgm_valid) {
-		const auto& music = Main_Data::game_system->GetCurrentBGM();
-		saved_bgm.name = music.name;
-		saved_bgm.volume = music.volume;
-		saved_bgm.tempo = music.tempo;
-		saved_bgm.fadein = music.fadein;
-		saved_bgm.balance = music.balance;
-		saved_bgm_valid = true;
-		Audio().BGM_Stop();
-	}
 	if (broadcast) SendState(peer_id, is_active, path, false);
-	if (had_active_source && !HasActiveSource()) RestoreGameMusic();
-}
-
-void MultiplayerBoombox::RestoreGameMusic() {
-	restoring_game_music = true;
-	Audio().BGM_Stop();
-	Audio().BGM_SetLooping(true);
-	if (saved_bgm_valid && Main_Data::game_system) {
-		const auto music = saved_bgm;
-		saved_bgm_valid = false;
-		Main_Data::game_system->BgmStop();
-		if (!music.name.empty() && music.name != "(OFF)") {
-			lcf::rpg::Music restored;
-			restored.name = music.name;
-			restored.volume = music.volume;
-			restored.tempo = music.tempo;
-			restored.fadein = music.fadein;
-			restored.balance = music.balance;
-			Main_Data::game_system->BgmPlay(restored);
-		}
-	}
-	restoring_game_music = false;
 }
 
 void MultiplayerBoombox::HandlePacket(uint16_t sender_id, const uint8_t* data, size_t len) {
@@ -321,18 +274,25 @@ void MultiplayerBoombox::Update() {
 	const int local_map = Game_Map::GetMapId();
 
 	for (const auto& [peer_id, state] : states) {
-		const int slot = GetSlot(peer_id);
-		if (slot < 0) continue;
 		Game_Character* source = nullptr;
 		if (peer_id == NetManager::Instance().GetLocalPeerId()) source = Main_Data::game_player.get();
 		else source = MultiplayerState::Instance().GetRemotePlayer(peer_id);
-		if (!source || !state.active || source->GetMapId() != local_map) {
-			if (!state.active) {
-				Audio().BGS_StopChannel(slot);
-				playing_paths.erase(peer_id);
-			} else {
-				Audio().BGS_ChannelVolume(slot, 0);
+
+		if (!state.active || !source) {
+			auto slot_it = slots.find(peer_id);
+			if (slot_it != slots.end()) {
+				Audio().BGS_StopChannel(slot_it->second);
+				slots.erase(slot_it);
 			}
+			playing_paths.erase(peer_id);
+			continue;
+		}
+
+		const int slot = GetSlot(peer_id);
+		if (slot < 0) continue;
+
+		if (source->GetMapId() != local_map) {
+			Audio().BGS_ChannelVolume(slot, 0);
 			continue;
 		}
 

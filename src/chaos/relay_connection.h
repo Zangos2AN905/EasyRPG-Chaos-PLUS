@@ -19,6 +19,7 @@ typedef SOCKET SocketHandle;
 #define INVALID_SOCK INVALID_SOCKET
 #else
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -122,8 +123,9 @@ private:
 	SocketHandle sock = INVALID_SOCK;
 	bool connected = false;
 
-	// Receive buffer
+	// Receive buffer (recv_offset skips already-consumed bytes)
 	std::vector<uint8_t> recv_buf;
+	size_t recv_offset = 0;
 
 	// Room state
 	std::string room_code;

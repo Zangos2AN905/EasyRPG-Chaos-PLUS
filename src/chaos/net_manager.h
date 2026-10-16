@@ -20,8 +20,11 @@
 typedef struct _ENetHost ENetHost;
 typedef struct _ENetPeer ENetPeer;
 typedef struct _ENetEvent ENetEvent;
+typedef struct _ENetPacket ENetPacket;
 
 namespace Chaos {
+
+class StunServer;
 
 struct PeerInfo {
 	uint16_t peer_id = 0;
@@ -166,6 +169,13 @@ private:
 	PeerInfo* FindPeerByENet(ENetPeer* peer);
 	void RemovePeer(ENetPeer* peer);
 
+	// Send a packet and take ownership of it; destroys it on failure
+	static void SendPacket(ENetPeer* peer, int channel, ENetPacket* pkt);
+
+	// UDP hole punching (NAT traversal)
+	void PunchEndpoint(uint32_t host, uint16_t port);
+	void SendStunBindingRequest(uint32_t host, uint16_t port);
+
 	ENetHost* enet_host = nullptr;
 	ENetPeer* server_peer = nullptr;  // Client: connection to server
 
@@ -191,6 +201,12 @@ private:
 	std::string host_game_name;
 	uint16_t local_peer_id = 0;
 	uint16_t next_peer_id = 1;
+
+	// STUN responder for hole punching (host only)
+	std::unique_ptr<StunServer> stun_server;
+	uint32_t punch_target_host = 0;
+	uint16_t punch_target_port = 0;
+	int punch_retry_frames = 0;
 	std::string local_player_name;
 	MultiplayerMode current_mode = MultiplayerMode::Normal;
 

@@ -62,6 +62,12 @@ public:
 	/** Get a remote player by peer ID */
 	Game_RemotePlayer* GetRemotePlayer(uint16_t peer_id);
 
+	/** Get or lazily create a remote player (used for fake players) */
+	Game_RemotePlayer* GetOrCreateRemotePlayer(uint16_t peer_id, const std::string& name);
+
+	/** Remove a remote player and its sprite */
+	void RemoveRemotePlayer(uint16_t peer_id);
+
 	/** Get all remote players */
 	const std::map<uint16_t, std::unique_ptr<Game_RemotePlayer>>& GetRemotePlayers() const {
 		return remote_players;
@@ -255,6 +261,12 @@ private:
 	void CreateRubberBandDrawable();
 	void DestroyRubberBandDrawable();
 	void ApplyRubberBandPull();
+	Game_RemotePlayer* FindClosestRemotePlayer(int& dist_sq) const;
+
+	// Persisted admins (host only): survive reconnects and restarts
+	static std::string AdminIdentityFor(uint16_t peer_id);
+	void LoadAdminList();
+	void SaveAdminList() const;
 
 	// Horror mode
 	void UpdateHorror();
@@ -276,6 +288,7 @@ private:
 	// Remote players indexed by peer_id
 	std::map<uint16_t, std::unique_ptr<Game_RemotePlayer>> remote_players;
 	std::set<uint16_t> admin_peers;
+	std::set<std::string> persisted_admins;
 	std::set<uint16_t> noclip_peers;
 
 	struct RewindPlayerSnapshot {
@@ -291,12 +304,16 @@ private:
 	struct RewindSnapshot {
 		int map_id = 0;
 		std::vector<RewindPlayerSnapshot> players;
-		std::vector<bool> switches;
-		std::vector<int32_t> variables;
+		// Shared across snapshots when unchanged between frames to avoid
+		// copying the full switch/variable arrays on every capture.
+		std::shared_ptr<const std::vector<bool>> switches;
+		std::shared_ptr<const std::vector<int32_t>> variables;
 	};
 	std::deque<RewindSnapshot> rewind_history;
 	std::set<uint16_t> rewind_holders;
 	size_t rewind_cursor = 0;
+	int rewind_broadcast_counter = 0;
+	bool rewind_sent_end = false;
 	uint32_t rewind_sequence = 0;
 	uint32_t last_rewind_sequence = 0;
 	int rewind_cooldown_frames = 0;
@@ -364,6 +381,35 @@ private:
 	// For detecting switch/variable changes
 	std::vector<bool> last_switches;
 	std::vector<int32_t> last_variables;
+
+	// For detecting event position changes (host): only changed events are sent
+	struct EventSnapshot {
+		int32_t x = 0;
+		int32_t y = 0;
+		int32_t direction = 0;
+		int32_t facing = 0;
+		int32_t remaining_step = 0;
+	};
+	std::map<int, EventSnapshot> last_event_states;
+	int last_event_sync_map_id = -1;
+	int event_full_sync_counter = 0;
+	static constexpr int EVENT_FULL_SYNC_INTERVAL = 20; // full resync every 20 sync ticks (~2s) as self-heal
+
+	// For suppressing unchanged position sends (with periodic keepalive)
+	struct PositionSnapshot {
+		bool valid = false;
+		int map_id = 0;
+		int x = 0;
+		int y = 0;
+		int direction = 0;
+		int facing = 0;
+		int sprite_index = 0;
+		std::string sprite_name;
+	} last_position_sent;
+	int position_keepalive_counter = 0;
+	static constexpr int POSITION_KEEPALIVE_TICKS = 5; // full resend every 5 send ticks
+	std::string cached_skin_sprite_name;
+	std::vector<uint16_t> remote_update_ids;
 
 	// For detecting actor state changes (chaotix sync)
 	struct ActorSnapshot {

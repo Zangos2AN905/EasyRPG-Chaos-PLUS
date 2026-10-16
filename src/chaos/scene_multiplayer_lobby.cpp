@@ -37,7 +37,7 @@ static constexpr uint16_t DEFAULT_PORT = 6510;
 static constexpr int MAX_NAME_LEN = 12;
 
 // Default relay server address
-static const std::string RELAY_HOST = "179.198.114.183";
+static const std::string RELAY_HOST = "2.25.129.126";
 static constexpr uint16_t RELAY_PORT = 6510;
 
 // Characters available for name entry

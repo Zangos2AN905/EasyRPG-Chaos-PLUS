@@ -516,6 +516,8 @@ add_library(${PROJECT_NAME} OBJECT
 	src/chaos/net_packet.h
 	src/chaos/net_manager.cpp
 	src/chaos/net_manager.h
+	src/chaos/stun_server.cpp
+	src/chaos/stun_server.h
 	src/chaos/relay_connection.cpp
 	src/chaos/relay_connection.h
 	src/chaos/game_multiplayer.cpp
@@ -530,6 +532,8 @@ add_library(${PROJECT_NAME} OBJECT
 	src/chaos/gamemode_underwater_mode.h
 	src/chaos/multiplayer_chat.cpp
 	src/chaos/multiplayer_chat.h
+	src/chaos/multiplayer_ai.cpp
+	src/chaos/multiplayer_ai.h
 	src/chaos/multiplayer_commands.cpp
 	src/chaos/multiplayer_commands.h
 	src/chaos/multiplayer_radio.cpp
@@ -1120,9 +1124,17 @@ target_link_libraries(${PROJECT_NAME} CURL::libcurl)
 # Chaos Fork: Discord Rich Presence
 find_library(DISCORD_RPC_LIBRARY discord-rpc HINTS "${CMAKE_PREFIX_PATH}")
 if(DISCORD_RPC_LIBRARY)
-	target_link_libraries(${PROJECT_NAME} ${DISCORD_RPC_LIBRARY})
+	# Link the matching static variant per config (the prebuilt libs are CRT-specific)
+	get_filename_component(_discord_rpc_lib_dir "${DISCORD_RPC_LIBRARY}" DIRECTORY)
+	get_filename_component(_discord_rpc_root "${_discord_rpc_lib_dir}" DIRECTORY)
+	find_library(DISCORD_RPC_LIBRARY_DEBUG discord-rpc HINTS "${_discord_rpc_root}/debug/lib" NO_DEFAULT_PATH)
+	if(DISCORD_RPC_LIBRARY_DEBUG)
+		target_link_libraries(${PROJECT_NAME} optimized ${DISCORD_RPC_LIBRARY} debug ${DISCORD_RPC_LIBRARY_DEBUG})
+	else()
+		target_link_libraries(${PROJECT_NAME} ${DISCORD_RPC_LIBRARY})
+	endif()
 	target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_DISCORD_RPC=1)
-	message(STATUS "Discord RPC: ${DISCORD_RPC_LIBRARY}")
+	message(STATUS "Discord RPC: ${DISCORD_RPC_LIBRARY} (debug: ${DISCORD_RPC_LIBRARY_DEBUG})")
 else()
 	message(WARNING "Discord RPC library not found, Discord integration will not be available")
 endif()
@@ -2041,11 +2053,6 @@ message(STATUS "")
 message(STATUS "Manual page: ${MANUAL_STATUS}")
 message(STATUS "Bash completion: ${BASHCOMPLETION_STATUS}")
 message(STATUS "Doxygen: ${DOXYGEN_STATUS}")
-
-option(BUILD_DEDICATED_SERVER "Build the standalone C++ dedicated relay server" ON)
-if(BUILD_DEDICATED_SERVER)
-	add_subdirectory(dedicatedserver)
-endif()
 
 message(STATUS "")
 

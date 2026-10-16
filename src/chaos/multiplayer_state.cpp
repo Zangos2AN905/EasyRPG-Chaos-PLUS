@@ -7,6 +7,7 @@
 #include "chaos/multiplayer_boombox.h"
 #include "chaos/multiplayer_chat.h"
 #include "chaos/multiplayer_commands.h"
+#include "chaos/multiplayer_ai.h"
 #include "chaos/custom_mode.h"
 #include "chaos/net_manager.h"
 #include "chaos/net_packet.h"
@@ -43,12 +44,14 @@
 #include "window_help.h"
 #include <lcf/reader_util.h>
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <fmt/format.h>
 
 namespace Chaos {
 
 static constexpr const char* kLocalSkinCacheName = "__skin_local";
+static constexpr int32_t kMaxSwitchVarId = 65535;
 
 MultiplayerState& MultiplayerState::Instance() {
 	static MultiplayerState instance;
@@ -59,6 +62,7 @@ void MultiplayerState::StartMultiplayer() {
 	if (active) return;
 	active = true;
 	admin_peers.clear();
+	LoadAdminList();
 	MultiplayerRadio::Instance().Start();
 	MultiplayerBoombox::Instance().Start();
 	noclip_peers.clear();
@@ -118,10 +122,67 @@ void MultiplayerState::SetAdmin(uint16_t peer_id, bool value) {
 	if (value) admin_peers.insert(peer_id);
 	else admin_peers.erase(peer_id);
 	Output::Debug("Multiplayer: Peer {} {} admin", peer_id, value ? "ranked as" : "demoted from");
+
+	// The host owns the persisted admin list
+	if (NetManager::Instance().IsHost()) {
+		const auto identity = AdminIdentityFor(peer_id);
+		if (!identity.empty()) {
+			if (value) persisted_admins.insert(identity);
+			else persisted_admins.erase(identity);
+			SaveAdminList();
+		}
+	}
+}
+
+std::string MultiplayerState::AdminIdentityFor(uint16_t peer_id) {
+	const auto* pi = NetManager::Instance().FindPeer(peer_id);
+	if (!pi) return "";
+	if (!pi->discord_user_id.empty()) return "d:" + pi->discord_user_id;
+	std::string name = pi->player_name;
+	std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(c));
+	});
+	return name.empty() ? "" : "n:" + name;
+}
+
+void MultiplayerState::LoadAdminList() {
+	persisted_admins.clear();
+	auto fs = FileFinder::Save();
+	if (!fs) return;
+	auto in = fs.OpenInputStream("Multiplayer/admins.txt", std::ios::in);
+	if (!in) return;
+	constexpr size_t kMaxPersistedAdmins = 256;
+	for (std::string line; persisted_admins.size() < kMaxPersistedAdmins && std::getline(in, line);) {
+		while (!line.empty() && (line.back() == '\r' || line.back() == '\n' ||
+				line.back() == ' ' || line.back() == '\t')) {
+			line.pop_back();
+		}
+		if (line.size() < 3) continue;
+		if ((line[0] == 'd' || line[0] == 'n') && line[1] == ':') {
+			persisted_admins.insert(line);
+		}
+	}
+	if (!persisted_admins.empty()) {
+		Output::Debug("Multiplayer: Loaded {} persisted admin(s)", persisted_admins.size());
+	}
+}
+
+void MultiplayerState::SaveAdminList() const {
+	auto fs = FileFinder::Save();
+	if (!fs || !fs.MakeDirectory("Multiplayer", true)) return;
+	auto out = fs.OpenOutputStream("Multiplayer/admins.txt", std::ios::out | std::ios::trunc);
+	if (!out) return;
+	out << "# Chaos multiplayer persisted admins (one identity per line)\n";
+	for (const auto& id : persisted_admins) {
+		out << id << "\n";
+	}
+	out.Close();
+	fs.ClearCache();
 }
 
 void MultiplayerState::StopMultiplayer() {
 	if (!active) return;
+	MultiplayerAi::Instance().Reset();
 	SplitMode::Instance().Stop();
 	UnderwaterMode::Instance().Stop();
 	CustomMode::Instance().Stop();
@@ -222,6 +283,9 @@ void MultiplayerState::Update() {
 	if (!current_spriteset) return;
 	UpdateSmoothPlayerTarget();
 
+	// Fake players (host simulates, clients just see the replicated state)
+	MultiplayerAi::Instance().Update();
+
 	// Send local player position periodically (skip if spectating — we're dead)
 	if (!spectating) {
 		// Broadcast skin data once per session when first on a map
@@ -244,14 +308,14 @@ void MultiplayerState::Update() {
 
 	// Update remote player characters (movement animation, stepping)
 	// Collect IDs first to avoid iterator invalidation if a callback removes a player
-	std::vector<uint16_t> update_ids;
-	update_ids.reserve(remote_players.size());
+	remote_update_ids.clear();
+	remote_update_ids.reserve(remote_players.size());
 	for (auto& [id, rp] : remote_players) {
 		if (rp && rp->IsOnCurrentMap()) {
-			update_ids.push_back(id);
+			remote_update_ids.push_back(id);
 		}
 	}
-	for (auto id : update_ids) {
+	for (auto id : remote_update_ids) {
 		auto it = remote_players.find(id);
 		if (it != remote_players.end() && it->second) {
 			it->second->UpdateRemote();
@@ -514,6 +578,15 @@ void MultiplayerState::OnPlayerConnected(uint16_t peer_id) {
 
 	Output::Debug("Multiplayer: Created remote player for peer {}", peer_id);
 
+	// Re-grant persisted admins when they (re)join (host only)
+	if (net.IsHost()) {
+		const auto identity = AdminIdentityFor(peer_id);
+		if (!identity.empty() && persisted_admins.count(identity) != 0) {
+			Output::Debug("Multiplayer: Restoring admin rank for peer {}", peer_id);
+			MultiplayerCommands::Submit(";rank " + std::to_string(peer_id) + " admin");
+		}
+	}
+
 	// If we're on a map, create sprite immediately
 	if (current_spriteset && ptr->IsOnCurrentMap()) {
 		CreateRemotePlayerSprite(ptr);
@@ -604,11 +677,13 @@ if (net.IsHost() && IsModeActive(MultiplayerMode::Split)) {
 	if (net.IsHost()) {
 		MultiplayerRadio::Instance().SendQueueTo(peer_id);
 		MultiplayerBoombox::Instance().SendStatesTo(peer_id);
+		MultiplayerAi::Instance().SendRosterTo(peer_id);
 	}
 }
 
 void MultiplayerState::OnPlayerDisconnected(uint16_t peer_id) {
 	rewind_holders.erase(peer_id);
+	admin_peers.erase(peer_id);
 	RemoveRemotePlayerSprite(peer_id);
 	remote_players.erase(peer_id);
 
@@ -749,6 +824,9 @@ void MultiplayerState::OnPacketReceived(uint16_t sender_id, const uint8_t* data,
 		case PacketType::ChaosEvent:
 			CustomMode::Instance().HandleEventPacket(data, len);
 			break;
+		case PacketType::AiSync:
+			MultiplayerAi::Instance().HandlePacket(data, len);
+			break;
 		default:
 			break;
 	}
@@ -766,6 +844,10 @@ void MultiplayerState::HandlePlayerPosition(uint16_t sender_id, const uint8_t* d
 	int32_t facing = reader.readI32();
 	std::string sprite_name = reader.readString();
 	int32_t sprite_index = reader.readI32();
+	if (!reader.ok()) return;
+
+	// On the host a packet must describe the player that actually sent it
+	if (NetManager::Instance().IsHost() && sender_id != 0 && peer_id != sender_id) return;
 
 	// Use sender_id if this is on the server, or peer_id from packet on client
 	uint16_t actual_id = (sender_id != 0) ? sender_id : peer_id;
@@ -800,10 +882,9 @@ void MultiplayerState::HandlePlayerPosition(uint16_t sender_id, const uint8_t* d
 		// Player not yet registered, create them
 		auto& net = NetManager::Instance();
 		auto* pi = net.FindPeer(actual_id);
-		std::string name = pi ? pi->player_name : "Player";
-		auto new_rp = std::make_unique<Game_RemotePlayer>(actual_id, name);
-		rp = new_rp.get();
-		remote_players[actual_id] = std::move(new_rp);
+		std::string name = pi ? pi->player_name : MultiplayerAi::Instance().GetName(actual_id);
+		if (name.empty()) name = "Player";
+		rp = GetOrCreateRemotePlayer(actual_id, name);
 	}
 
 	bool was_on_map = rp->IsOnCurrentMap();
@@ -930,8 +1011,19 @@ void MultiplayerState::CaptureRewindSnapshot() {
 		add_player(peer_id, *player, player->GetMapId(), player->GetSpriteName(), player->GetSpriteIndex());
 	}
 
-	if (Main_Data::game_switches) snapshot.switches = Main_Data::game_switches->GetData();
-	if (Main_Data::game_variables) snapshot.variables = Main_Data::game_variables->GetData();
+	// Share the arrays with the previous snapshot when unchanged (common case),
+	// so an idle frame copies no switch/variable data at all.
+	const RewindSnapshot* prev = rewind_history.empty() ? nullptr : &rewind_history.back();
+	if (Main_Data::game_switches) {
+		const auto& data = Main_Data::game_switches->GetData();
+		if (prev && prev->switches && *prev->switches == data) snapshot.switches = prev->switches;
+		else snapshot.switches = std::make_shared<const std::vector<bool>>(data);
+	}
+	if (Main_Data::game_variables) {
+		const auto& data = Main_Data::game_variables->GetData();
+		if (prev && prev->variables && *prev->variables == data) snapshot.variables = prev->variables;
+		else snapshot.variables = std::make_shared<const std::vector<int32_t>>(data);
+	}
 	rewind_history.push_back(std::move(snapshot));
 	while (rewind_history.size() > REWIND_MAX_SNAPSHOTS) rewind_history.pop_front();
 }
@@ -974,12 +1066,12 @@ void MultiplayerState::ApplyRewindSnapshot(const RewindSnapshot& snapshot) {
 		}
 	}
 
-	if (Main_Data::game_switches) {
-		Main_Data::game_switches->SetData(snapshot.switches);
+	if (Main_Data::game_switches && snapshot.switches) {
+		Main_Data::game_switches->SetData(*snapshot.switches);
 		Game_Map::SetNeedRefresh(true);
 	}
-	if (Main_Data::game_variables) {
-		Main_Data::game_variables->SetData(snapshot.variables);
+	if (Main_Data::game_variables && snapshot.variables) {
+		Main_Data::game_variables->SetData(*snapshot.variables);
 		Game_Map::SetNeedRefresh(true);
 	}
 }
@@ -1040,13 +1132,15 @@ void MultiplayerState::BroadcastRewindSnapshot(const RewindSnapshot& snapshot) {
 		packet.write(player.sprite_name);
 		packet.write(static_cast<int32_t>(player.sprite_index));
 	}
-	packet.write(static_cast<uint16_t>(std::min<size_t>(snapshot.switches.size(), UINT16_MAX)));
-	for (size_t i = 0; i < snapshot.switches.size() && i < UINT16_MAX; ++i) {
-		packet.write(static_cast<uint8_t>(snapshot.switches[i] ? 1 : 0));
+	const size_t switch_count = snapshot.switches ? snapshot.switches->size() : 0;
+	packet.write(static_cast<uint16_t>(std::min<size_t>(switch_count, UINT16_MAX)));
+	for (size_t i = 0; i < switch_count && i < UINT16_MAX; ++i) {
+		packet.write(static_cast<uint8_t>((*snapshot.switches)[i] ? 1 : 0));
 	}
-	packet.write(static_cast<uint16_t>(std::min<size_t>(snapshot.variables.size(), UINT16_MAX)));
-	for (size_t i = 0; i < snapshot.variables.size() && i < UINT16_MAX; ++i) {
-		packet.write(snapshot.variables[i]);
+	const size_t variable_count = snapshot.variables ? snapshot.variables->size() : 0;
+	packet.write(static_cast<uint16_t>(std::min<size_t>(variable_count, UINT16_MAX)));
+	for (size_t i = 0; i < variable_count && i < UINT16_MAX; ++i) {
+		packet.write((*snapshot.variables)[i]);
 	}
 	NetManager::Instance().Broadcast(packet, false);
 }
@@ -1075,14 +1169,19 @@ void MultiplayerState::HandleRewindSnapshot(const uint8_t* data, size_t len) {
 		player.sprite_index = reader.readI32();
 		snapshot.players.push_back(std::move(player));
 	}
+	std::vector<bool> switches;
 	const uint16_t switch_count = reader.readU16();
-	if (switch_count > 65535) return;
-	snapshot.switches.reserve(switch_count);
-	for (uint16_t i = 0; i < switch_count; ++i) snapshot.switches.push_back(reader.readU8() != 0);
+	if (!reader.ok() || switch_count > reader.remaining()) return;
+	switches.reserve(switch_count);
+	for (uint16_t i = 0; i < switch_count; ++i) switches.push_back(reader.readU8() != 0);
+	std::vector<int32_t> variables;
 	const uint16_t variable_count = reader.readU16();
-	snapshot.variables.reserve(variable_count);
-	for (uint16_t i = 0; i < variable_count; ++i) snapshot.variables.push_back(reader.readI32());
+	if (!reader.ok() || static_cast<size_t>(variable_count) * 4 > reader.remaining()) return;
+	variables.reserve(variable_count);
+	for (uint16_t i = 0; i < variable_count; ++i) variables.push_back(reader.readI32());
 	if (!reader.ok()) return;
+	snapshot.switches = std::make_shared<const std::vector<bool>>(std::move(switches));
+	snapshot.variables = std::make_shared<const std::vector<int32_t>>(std::move(variables));
 	last_rewind_sequence = sequence;
 	rewind_active = true;
 	ApplyRewindSnapshot(snapshot);
@@ -1125,12 +1224,22 @@ void MultiplayerState::UpdateRewind() {
 		if (!wants_rewind || rewind_history.empty()) return;
 		rewind_active = true;
 		rewind_cursor = rewind_history.size() - 1;
+		rewind_broadcast_counter = 0;
+		rewind_sent_end = false;
 		BroadcastRewindStatus(true);
 	}
 
 	for (int step = 0; step < 3 && rewind_cursor > 0; ++step) --rewind_cursor;
 	ApplyRewindSnapshot(rewind_history[rewind_cursor]);
-	BroadcastRewindSnapshot(rewind_history[rewind_cursor]);
+	// Full snapshots are large (all players + switches + variables); send every
+	// 3rd frame and always once when the rewind reaches the oldest snapshot.
+	const bool at_end = rewind_cursor == 0;
+	++rewind_broadcast_counter;
+	if (rewind_broadcast_counter >= 3 || (at_end && !rewind_sent_end)) {
+		rewind_broadcast_counter = 0;
+		rewind_sent_end = rewind_sent_end || at_end;
+		BroadcastRewindSnapshot(rewind_history[rewind_cursor]);
+	}
 }
 
 void MultiplayerState::HandleSwitchSync(const uint8_t* data, size_t len) {
@@ -1139,6 +1248,8 @@ void MultiplayerState::HandleSwitchSync(const uint8_t* data, size_t len) {
 
 	int32_t switch_id = reader.readI32();
 	uint8_t value = reader.readU8();
+	// Set() resizes the backing array to the given id, so reject absurd ids
+	if (!reader.ok() || switch_id <= 0 || switch_id > kMaxSwitchVarId) return;
 
 	if (Main_Data::game_switches) {
 		Main_Data::game_switches->Set(switch_id, value != 0);
@@ -1152,6 +1263,8 @@ void MultiplayerState::HandleVariableSync(const uint8_t* data, size_t len) {
 
 	int32_t var_id = reader.readI32();
 	int32_t value = reader.readI32();
+	// Set() resizes the backing array to the given id, so reject absurd ids
+	if (!reader.ok() || var_id <= 0 || var_id > kMaxSwitchVarId) return;
 
 	if (Main_Data::game_variables) {
 		Main_Data::game_variables->Set(var_id, value);
@@ -1163,8 +1276,15 @@ void MultiplayerState::HandleGodCommand(uint16_t sender_id, const uint8_t* data,
 	auto& net = NetManager::Instance();
 	if (net.GetMode() != MultiplayerMode::GodMode) return;
 
-	// Only the assigned god player can send god commands
-	if (sender_id != god_player_id) return;
+	if (net.IsHost()) {
+		// Only the assigned god player can send god commands
+		if (sender_id == 0 || sender_id != god_player_id) return;
+		// Relay the validated command so every client applies it as well
+		PacketWriter fwd(PacketType::GodCommand);
+		fwd.writeBytes(data + 1, len - 1);
+		net.Broadcast(fwd, true);
+	}
+	// On clients the command only arrives through the host (validated there)
 
 	PacketReader reader(data, len);
 	reader.readType();
@@ -1327,7 +1447,14 @@ void MultiplayerState::SendGodCommand(uint8_t cmd_type, const std::vector<int32_
 	for (auto arg : args) {
 		packet.write(arg);
 	}
-	net.Broadcast(packet, true);
+	if (net.IsHost()) {
+		// HandleGodCommand validates the sender and rebroadcasts to the clients;
+		// it also applies the command locally (Broadcast does not loop back)
+		HandleGodCommand(net.GetLocalPeerId(), packet.data(), packet.size());
+	} else {
+		// Clients route through the host, which validates and rebroadcasts
+		net.SendToServer(packet, true);
+	}
 }
 
 void MultiplayerState::SendLocalPlayerPosition() {
@@ -1340,20 +1467,44 @@ void MultiplayerState::SendLocalPlayerPosition() {
 	std::string sprite_name;
 	int32_t sprite_index;
 	if (HasSkin()) {
-		sprite_name = "__skin_" + std::to_string(net.GetLocalPeerId());
+		if (cached_skin_sprite_name.empty()) {
+			cached_skin_sprite_name = "__skin_" + std::to_string(net.GetLocalPeerId());
+		}
+		sprite_name = cached_skin_sprite_name;
 		sprite_index = skin_char_index;
 	} else {
 		sprite_name = player->GetSpriteName().empty() ? std::string("") : std::string(player->GetSpriteName());
 		sprite_index = player->GetSpriteIndex();
 	}
 
+	const int map_id = Game_Map::GetMapId();
+	const int x = player->GetX();
+	const int y = player->GetY();
+	const int direction = player->GetDirection();
+	const int facing = player->GetFacing();
+
+	// Skip unchanged state; the unreliable channel needs a periodic keepalive
+	const bool changed = !last_position_sent.valid ||
+		last_position_sent.map_id != map_id || last_position_sent.x != x ||
+		last_position_sent.y != y || last_position_sent.direction != direction ||
+		last_position_sent.facing != facing || last_position_sent.sprite_index != sprite_index ||
+		last_position_sent.sprite_name != sprite_name;
+	if (changed) {
+		position_keepalive_counter = 0;
+		last_position_sent = {true, map_id, x, y, direction, facing, sprite_index, sprite_name};
+	} else if (++position_keepalive_counter < POSITION_KEEPALIVE_TICKS) {
+		return;
+	} else {
+		position_keepalive_counter = 0;
+	}
+
 	PacketWriter packet(PacketType::PlayerPosition);
 	packet.write(net.GetLocalPeerId());
-	packet.write(static_cast<int32_t>(Game_Map::GetMapId()));
-	packet.write(static_cast<int32_t>(player->GetX()));
-	packet.write(static_cast<int32_t>(player->GetY()));
-	packet.write(static_cast<int32_t>(player->GetDirection()));
-	packet.write(static_cast<int32_t>(player->GetFacing()));
+	packet.write(static_cast<int32_t>(map_id));
+	packet.write(static_cast<int32_t>(x));
+	packet.write(static_cast<int32_t>(y));
+	packet.write(static_cast<int32_t>(direction));
+	packet.write(static_cast<int32_t>(facing));
 	packet.write(sprite_name);
 	packet.write(sprite_index);
 
@@ -1385,20 +1536,21 @@ void MultiplayerState::CheckAndSyncSwitches() {
 		return;
 	}
 
-	// Detect changes
-	size_t max_size = std::max(sw_data.size(), last_switches.size());
+	// Detect changes and update the mirror in place to avoid a full copy every frame
+	const size_t max_size = std::max(sw_data.size(), last_switches.size());
+	last_switches.resize(max_size, false);
 	for (size_t i = 0; i < max_size; ++i) {
 		bool cur = (i < sw_data.size()) ? sw_data[i] : false;
-		bool prev = (i < last_switches.size()) ? last_switches[i] : false;
+		bool prev = last_switches[i];
 		if (cur != prev) {
+			last_switches[i] = cur;
 			PacketWriter packet(PacketType::SwitchSync);
 			packet.write(static_cast<int32_t>(i + 1)); // 1-indexed
 			packet.write(static_cast<uint8_t>(cur ? 1 : 0));
 			net.Broadcast(packet, true);
 		}
 	}
-
-	last_switches = sw_data;
+	if (last_switches.size() > sw_data.size()) last_switches.resize(sw_data.size());
 }
 
 void MultiplayerState::CheckAndSyncVariables() {
@@ -1413,20 +1565,21 @@ void MultiplayerState::CheckAndSyncVariables() {
 		return;
 	}
 
-	// Detect changes
-	size_t max_size = std::max(var_data.size(), last_variables.size());
+	// Detect changes and update the mirror in place to avoid a full copy every frame
+	const size_t max_size = std::max(var_data.size(), last_variables.size());
+	last_variables.resize(max_size, 0);
 	for (size_t i = 0; i < max_size; ++i) {
 		int32_t cur = (i < var_data.size()) ? var_data[i] : 0;
-		int32_t prev = (i < last_variables.size()) ? last_variables[i] : 0;
+		int32_t prev = last_variables[i];
 		if (cur != prev) {
+			last_variables[i] = cur;
 			PacketWriter packet(PacketType::VariableSync);
 			packet.write(static_cast<int32_t>(i + 1)); // 1-indexed
 			packet.write(cur);
 			net.Broadcast(packet, true);
 		}
 	}
-
-	last_variables = var_data;
+	if (last_variables.size() > var_data.size()) last_variables.resize(var_data.size());
 }
 
 void MultiplayerState::CreateRemotePlayerSprite(Game_RemotePlayer* player) {
@@ -1452,6 +1605,20 @@ void MultiplayerState::RemoveRemotePlayerSprite(uint16_t peer_id) {
 Game_RemotePlayer* MultiplayerState::GetRemotePlayer(uint16_t peer_id) {
 	auto it = remote_players.find(peer_id);
 	return (it != remote_players.end()) ? it->second.get() : nullptr;
+}
+
+Game_RemotePlayer* MultiplayerState::GetOrCreateRemotePlayer(uint16_t peer_id, const std::string& name) {
+	auto it = remote_players.find(peer_id);
+	if (it != remote_players.end()) return it->second.get();
+	auto new_rp = std::make_unique<Game_RemotePlayer>(peer_id, name);
+	auto* ptr = new_rp.get();
+	remote_players[peer_id] = std::move(new_rp);
+	return ptr;
+}
+
+void MultiplayerState::RemoveRemotePlayer(uint16_t peer_id) {
+	RemoveRemotePlayerSprite(peer_id);
+	remote_players.erase(peer_id);
 }
 
 bool MultiplayerState::ShouldInterceptGameOver() {
@@ -1755,6 +1922,7 @@ void MultiplayerState::HandleBattleStart(uint16_t sender_id, const uint8_t* data
 	uint8_t first_strike = reader.readU8();
 	uint8_t allow_escape = reader.readU8();
 	int32_t seed = reader.readI32();
+	if (!reader.ok()) return;
 
 	// If host, relay to other clients (with seed)
 	if (net.IsHost()) {
@@ -1824,6 +1992,7 @@ void MultiplayerState::HandleBattleForce(const uint8_t* data, size_t len) {
 	uint8_t first_strike = reader.readU8();
 	uint8_t allow_escape = reader.readU8();
 	int32_t seed = reader.readI32();
+	if (!reader.ok()) return;
 
 	// Don't force if we're already in battle
 	if (in_battle) return;
@@ -1849,6 +2018,7 @@ void MultiplayerState::HandleBattleAction(const uint8_t* data, size_t len) {
 	uint8_t action_type = reader.readU8();
 	int32_t target_id = reader.readI32();
 	int32_t skill_or_item_id = reader.readI32();
+	if (!reader.ok()) return;
 
 	RemoteBattleAction action;
 	action.actor_id = actor_id;
@@ -1865,6 +2035,7 @@ void MultiplayerState::HandleBattleEnd(const uint8_t* data, size_t len) {
 	reader.readType();
 	uint16_t peer_id = reader.readU16();
 	uint8_t result = reader.readU8();
+	if (!reader.ok()) return;
 
 	auto& net = NetManager::Instance();
 	auto mode = net.GetMode();
@@ -2026,42 +2197,74 @@ void MultiplayerState::SyncEventPositions() {
 	if (!net.IsHost()) return;
 
 	auto& events = Game_Map::GetEvents();
-	if (events.empty()) return;
+	if (events.empty()) {
+		last_event_states.clear();
+		return;
+	}
 
 	int32_t current_map_id = Game_Map::GetMapId();
+	bool full_sync = ++event_full_sync_counter >= EVENT_FULL_SYNC_INTERVAL;
+	if (full_sync) event_full_sync_counter = 0;
+	if (current_map_id != last_event_sync_map_id) {
+		last_event_sync_map_id = current_map_id;
+		last_event_states.clear();
+		full_sync = true;
+	}
+
+	struct PendingEvent {
+		uint16_t id;
+		int32_t x, y;
+		uint8_t direction, facing;
+		int32_t remaining_step;
+	};
+	std::vector<PendingEvent> pending;
+
+	for (auto& ev : events) {
+		if (ev.GetActivePage() == nullptr) {
+			// Resync the event whenever it becomes active again
+			last_event_states.erase(ev.GetId());
+			continue;
+		}
+		EventSnapshot state;
+		state.x = ev.GetX();
+		state.y = ev.GetY();
+		state.direction = ev.GetDirection();
+		state.facing = ev.GetFacing();
+		state.remaining_step = ev.GetRemainingStep();
+
+		auto it = last_event_states.find(ev.GetId());
+		const bool changed = full_sync || it == last_event_states.end() ||
+			it->second.x != state.x || it->second.y != state.y ||
+			it->second.direction != state.direction || it->second.facing != state.facing ||
+			it->second.remaining_step != state.remaining_step;
+		if (!changed) continue;
+		if (it == last_event_states.end()) last_event_states.emplace(ev.GetId(), state);
+		else it->second = state;
+		pending.push_back({static_cast<uint16_t>(ev.GetId()), state.x, state.y,
+			static_cast<uint8_t>(state.direction), static_cast<uint8_t>(state.facing), state.remaining_step});
+	}
+
+	if (pending.empty()) return;
 
 	// Pack event positions: [map_id:i32][count:u16] then per event [id:u16][x:i32][y:i32][dir:u8][facing:u8][remaining:i32]
 	// Split into chunks to avoid oversized packets (max ~50 events per packet)
 	static constexpr int MAX_EVENTS_PER_PACKET = 50;
 
-	for (size_t start = 0; start < events.size(); start += MAX_EVENTS_PER_PACKET) {
-		size_t end = std::min(start + MAX_EVENTS_PER_PACKET, events.size());
-		uint16_t count = 0;
-
-		// Count active events in this chunk
-		for (size_t i = start; i < end; ++i) {
-			auto& ev = events[i];
-			if (ev.GetActivePage() != nullptr) {
-				count++;
-			}
-		}
-
-		if (count == 0) continue;
+	for (size_t start = 0; start < pending.size(); start += MAX_EVENTS_PER_PACKET) {
+		size_t end = std::min(start + MAX_EVENTS_PER_PACKET, pending.size());
 
 		PacketWriter pw(PacketType::EventSync);
 		pw.write(current_map_id);
-		pw.write(count);
+		pw.write(static_cast<uint16_t>(end - start));
 
 		for (size_t i = start; i < end; ++i) {
-			auto& ev = events[i];
-			if (ev.GetActivePage() == nullptr) continue;
-
-			pw.write(static_cast<uint16_t>(ev.GetId()));
-			pw.write(static_cast<int32_t>(ev.GetX()));
-			pw.write(static_cast<int32_t>(ev.GetY()));
-			pw.write(static_cast<uint8_t>(ev.GetDirection()));
-			pw.write(static_cast<uint8_t>(ev.GetFacing()));
-			pw.write(static_cast<int32_t>(ev.GetRemainingStep()));
+			const auto& e = pending[i];
+			pw.write(e.id);
+			pw.write(e.x);
+			pw.write(e.y);
+			pw.write(e.direction);
+			pw.write(e.facing);
+			pw.write(e.remaining_step);
 		}
 
 		net.Broadcast(pw, false); // unreliable for performance
@@ -2439,10 +2642,12 @@ void MultiplayerState::HandleActorStateSync(const uint8_t* data, size_t len) {
 	int32_t hp = reader.readI32();
 	int32_t sp = reader.readI32();
 	uint16_t state_count = reader.readU16();
+	if (!reader.ok() || static_cast<size_t>(state_count) * 2 > reader.remaining()) return;
 	std::vector<int16_t> states(state_count);
 	for (uint16_t i = 0; i < state_count; i++) {
 		states[i] = static_cast<int16_t>(reader.readU16());
 	}
+	if (!reader.ok()) return;
 
 	if (!Main_Data::game_party) return;
 
@@ -2507,6 +2712,24 @@ void MultiplayerState::SetLightingPlayerRadius(int v) {
 	}
 }
 
+Game_RemotePlayer* MultiplayerState::FindClosestRemotePlayer(int& dist_sq) const {
+	auto* hero = Main_Data::game_player.get();
+	if (!hero) return nullptr;
+	Game_RemotePlayer* closest = nullptr;
+	dist_sq = 0;
+	for (auto& [id, rp] : remote_players) {
+		if (!rp->IsOnCurrentMap()) continue;
+		int dx = rp->GetX() - hero->GetX();
+		int dy = rp->GetY() - hero->GetY();
+		int d = dx * dx + dy * dy;
+		if (!closest || d < dist_sq) {
+			closest = rp.get();
+			dist_sq = d;
+		}
+	}
+	return closest;
+}
+
 void MultiplayerState::UpdateRubberBand() {
 	if (!rubber_band) return;
 
@@ -2523,18 +2746,8 @@ void MultiplayerState::UpdateRubberBand() {
 	}
 
 	// Find the closest remote player on the same map
-	Game_RemotePlayer* closest = nullptr;
 	int min_dist_sq = 0;
-	for (auto& [id, rp] : remote_players) {
-		if (!rp->IsOnCurrentMap()) continue;
-		int dx = rp->GetX() - hero->GetX();
-		int dy = rp->GetY() - hero->GetY();
-		int dist_sq = dx * dx + dy * dy;
-		if (!closest || dist_sq < min_dist_sq) {
-			closest = rp.get();
-			min_dist_sq = dist_sq;
-		}
-	}
+	Game_RemotePlayer* closest = FindClosestRemotePlayer(min_dist_sq);
 
 	if (!closest) {
 		rubber_band->SetVisible(false);
@@ -2580,18 +2793,8 @@ bool MultiplayerState::ShouldBlockMovement(int dir) const {
 	if (!hero) return false;
 
 	// Find the closest remote player on the same map
-	const Game_RemotePlayer* closest = nullptr;
 	int min_dist_sq = 0;
-	for (auto& [id, rp] : remote_players) {
-		if (!rp->IsOnCurrentMap()) continue;
-		int dx = rp->GetX() - hero->GetX();
-		int dy = rp->GetY() - hero->GetY();
-		int dist_sq = dx * dx + dy * dy;
-		if (!closest || dist_sq < min_dist_sq) {
-			closest = rp.get();
-			min_dist_sq = dist_sq;
-		}
-	}
+	const Game_RemotePlayer* closest = FindClosestRemotePlayer(min_dist_sq);
 
 	if (!closest) return false;
 
@@ -2630,18 +2833,8 @@ void MultiplayerState::ApplyRubberBandPull() {
 	if (!hero || !hero->IsStopping()) return;
 
 	// Find the closest remote player
-	Game_RemotePlayer* closest = nullptr;
 	int min_dist_sq = 0;
-	for (auto& [id, rp] : remote_players) {
-		if (!rp->IsOnCurrentMap()) continue;
-		int dx = rp->GetX() - hero->GetX();
-		int dy = rp->GetY() - hero->GetY();
-		int dist_sq = dx * dx + dy * dy;
-		if (!closest || dist_sq < min_dist_sq) {
-			closest = rp.get();
-			min_dist_sq = dist_sq;
-		}
-	}
+	Game_RemotePlayer* closest = FindClosestRemotePlayer(min_dist_sq);
 
 	if (!closest) return;
 
@@ -3018,6 +3211,7 @@ void MultiplayerState::HandleRawberrySync(const uint8_t* data, size_t len) {
 	int32_t y = reader.readI32();
 	int32_t direction = reader.readI32();
 	uint8_t spawned = reader.readU8();
+	if (!reader.ok()) return;
 
 	if (spawned == 0) {
 		// Rawberry was destroyed on host
@@ -3165,6 +3359,9 @@ void MultiplayerState::HandleChatMessage(uint16_t sender_id, const uint8_t* data
 	if (peer && !peer->player_name.empty()) {
 		sender_name = peer->player_name;
 	} else {
+		sender_name = MultiplayerAi::Instance().GetName(message_sender_id);
+	}
+	if (sender_name.empty()) {
 		auto* remote = GetRemotePlayer(message_sender_id);
 		if (remote) sender_name = remote->GetPlayerName();
 	}
@@ -3481,6 +3678,7 @@ void MultiplayerState::HandleSkinSet(uint16_t sender_id, const uint8_t* data, si
 	std::string charset_name = reader.readString();
 	int32_t char_index = reader.readI32();
 	int32_t data_size = reader.readI32();
+	if (!reader.ok()) return;
 
 	if (data_size <= 0 || data_size > 1024 * 1024) {
 		Output::Debug("Skin: Invalid skin data size {} from peer {}", data_size, peer_id);

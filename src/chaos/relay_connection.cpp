@@ -46,7 +46,7 @@ bool RelayConnection::Connect(const std::string& host, uint16_t port) {
 		return false;
 	}
 
-	if (::connect(sock, result->ai_addr, static_cast<int>(result->ai_addrlen)) != 0) {
+	if (!SetNonBlocking(sock)) {
 		freeaddrinfo(result);
 #ifdef _WIN32
 		closesocket(sock);
@@ -54,20 +54,59 @@ bool RelayConnection::Connect(const std::string& host, uint16_t port) {
 		close(sock);
 #endif
 		sock = INVALID_SOCK;
-		Output::Warning("Relay: Failed to connect to {}:{}", host, port);
+		Output::Warning("Relay: Failed to set non-blocking mode");
 		return false;
+	}
+
+	if (::connect(sock, result->ai_addr, static_cast<int>(result->ai_addrlen)) != 0) {
+		// Non-blocking connect: wait for completion with a bounded timeout so a
+		// dead relay cannot freeze the main loop
+		bool in_progress;
+#ifdef _WIN32
+		int err = WSAGetLastError();
+		in_progress = (err == WSAEWOULDBLOCK || err == WSAEINPROGRESS);
+#else
+		in_progress = (errno == EINPROGRESS || errno == EWOULDBLOCK);
+#endif
+		bool connect_ok = false;
+		if (in_progress) {
+			fd_set write_set;
+			FD_ZERO(&write_set);
+			FD_SET(sock, &write_set);
+			struct timeval tv;
+			tv.tv_sec = 5;
+			tv.tv_usec = 0;
+			connect_ok = select(static_cast<int>(sock) + 1, nullptr, &write_set, nullptr, &tv) > 0;
+			if (connect_ok) {
+				int so_error = 0;
+#ifdef _WIN32
+				int slen = sizeof(so_error);
+#else
+				socklen_t slen = sizeof(so_error);
+#endif
+				if (getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&so_error), &slen) != 0 || so_error != 0) {
+					connect_ok = false;
+				}
+			}
+		}
+		if (!connect_ok) {
+			freeaddrinfo(result);
+#ifdef _WIN32
+			closesocket(sock);
+#else
+			close(sock);
+#endif
+			sock = INVALID_SOCK;
+			Output::Warning("Relay: Failed to connect to {}:{}", host, port);
+			return false;
+		}
 	}
 
 	freeaddrinfo(result);
 
-	if (!SetNonBlocking(sock)) {
-		Output::Warning("Relay: Failed to set non-blocking mode");
-		Disconnect();
-		return false;
-	}
-
 	connected = true;
 	recv_buf.clear();
+	recv_offset = 0;
 	room_code.clear();
 	join_result_ready = false;
 	room_list_ready = false;
@@ -89,6 +128,7 @@ void RelayConnection::Disconnect() {
 	}
 	connected = false;
 	recv_buf.clear();
+	recv_offset = 0;
 	room_code.clear();
 	join_result_ready = false;
 	room_list_ready = false;
@@ -131,6 +171,9 @@ void RelayConnection::Send(RelayMsgType type, const uint8_t* data, size_t len) {
 		buf.insert(buf.end(), data, data + len);
 	}
 
+	// Bound the retry loop: a stalled relay must not freeze the main loop.
+	// On timeout the connection is treated as lost.
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
 	size_t total_sent = 0;
 	while (total_sent < buf.size()) {
 		int sent = send(sock, reinterpret_cast<const char*>(buf.data() + total_sent),
@@ -139,11 +182,21 @@ void RelayConnection::Send(RelayMsgType type, const uint8_t* data, size_t len) {
 #ifdef _WIN32
 			int err = WSAGetLastError();
 			if (err == WSAEWOULDBLOCK) {
+				if (std::chrono::steady_clock::now() >= deadline) {
+					Output::Warning("Relay: Send timed out");
+					Disconnect();
+					return;
+				}
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				continue;
 			}
 #else
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				if (std::chrono::steady_clock::now() >= deadline) {
+					Output::Warning("Relay: Send timed out");
+					Disconnect();
+					return;
+				}
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				continue;
 			}
@@ -219,7 +272,7 @@ bool RelayConnection::ReadAvailableData() {
 	while (true) {
 		int received = recv(sock, temp, sizeof(temp), 0);
 		if (received > 0) {
-			if (recv_buf.size() + received > MAX_RECV_BUF) {
+			if (recv_buf.size() - recv_offset + received > MAX_RECV_BUF) {
 				Output::Warning("Relay: Receive buffer exceeded {} bytes", MAX_RECV_BUF);
 				return false;
 			}
@@ -244,11 +297,12 @@ bool RelayConnection::ReadAvailableData() {
 }
 
 void RelayConnection::ProcessMessages() {
-	while (recv_buf.size() >= 4) {
-		uint32_t msg_len = (static_cast<uint32_t>(recv_buf[0]) << 24) |
-			(static_cast<uint32_t>(recv_buf[1]) << 16) |
-			(static_cast<uint32_t>(recv_buf[2]) << 8) |
-			static_cast<uint32_t>(recv_buf[3]);
+	while (recv_buf.size() - recv_offset >= 4) {
+		const uint8_t* p = recv_buf.data() + recv_offset;
+		uint32_t msg_len = (static_cast<uint32_t>(p[0]) << 24) |
+			(static_cast<uint32_t>(p[1]) << 16) |
+			(static_cast<uint32_t>(p[2]) << 8) |
+			static_cast<uint32_t>(p[3]);
 
 		if (msg_len == 0 || msg_len > (1 << 20)) {
 			Output::Warning("Relay: Invalid message length {}", msg_len);
@@ -256,17 +310,23 @@ void RelayConnection::ProcessMessages() {
 			return;
 		}
 
-		if (recv_buf.size() < 4 + msg_len) {
+		if (recv_buf.size() - recv_offset < 4 + msg_len) {
 			break; // Incomplete message, wait for more data
 		}
 
-		uint8_t type = recv_buf[4];
-		const uint8_t* payload = (msg_len > 1) ? &recv_buf[5] : nullptr;
+		uint8_t type = p[4];
+		const uint8_t* payload = (msg_len > 1) ? p + 5 : nullptr;
 		size_t payload_len = msg_len - 1;
 
 		HandleMessage(type, payload, payload_len);
 
-		recv_buf.erase(recv_buf.begin(), recv_buf.begin() + 4 + msg_len);
+		recv_offset += 4 + msg_len;
+	}
+
+	// Compact the consumed prefix once per update instead of per message
+	if (recv_offset > 0) {
+		recv_buf.erase(recv_buf.begin(), recv_buf.begin() + recv_offset);
+		recv_offset = 0;
 	}
 }
 

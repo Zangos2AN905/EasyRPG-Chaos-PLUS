@@ -106,6 +106,9 @@ enum class PacketType : uint8_t {
 	BoomboxCustomBegin, // Client -> Host or Host -> All: boombox custom metadata
 	BoomboxCustomChunk, // Client -> Host or Host -> All: boombox custom data
 	BoomboxCustomComplete, // Client -> Host or Host -> All: boombox custom finished
+
+	// Fake players
+	AiSync,               // Host -> All: fake player roster (id + name entries)
 };
 
 // Simple packet buffer for serialization
@@ -214,6 +217,8 @@ public:
 	}
 
 	bool hasData() const { return pos < length; }
+
+	size_t remaining() const { return error ? 0 : length - pos; }
 
 private:
 	const uint8_t* buf;

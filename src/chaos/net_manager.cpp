@@ -7,6 +7,7 @@
 #include "player.h"
 #include "filefinder.h"
 #include "chaos/discord_integration.h"
+#include "chaos/stun_server.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -86,6 +87,16 @@ bool NetManager::HostGame(uint16_t port, MultiplayerMode mode, const std::string
 	local_peer_id = AllocatePeerId();  // Host is peer 1
 	peers.clear();
 
+	// Host a STUN responder (game port + 1) so joining clients can punch
+	// through NATs without VPNs or port forwarding.
+	stun_server = std::make_unique<StunServer>();
+	stun_server->SetEndpointCallback([this](uint32_t ip, uint16_t port) {
+		PunchEndpoint(ip, port);
+	});
+	if (!stun_server->Start(static_cast<uint16_t>(port + 1))) {
+		Output::Warning("Multiplayer: STUN server failed to start on port {} (NAT traversal unavailable)", port + 1);
+	}
+
 	Output::Debug("Multiplayer: Hosting game on port {} (mode: {})", port, props.name);
 	return true;
 }
@@ -103,6 +114,14 @@ bool NetManager::JoinGame(const std::string& host, uint16_t port, const std::str
 	ENetAddress address;
 	enet_address_set_host(&address, host.c_str());
 	address.port = port;
+
+	// Punch through NATs: send STUN binding requests from the ENet socket so the
+	// host can observe our public endpoint and open a hole toward it while our
+	// own connect packets open the path in the other direction.
+	punch_target_host = address.host;
+	punch_target_port = static_cast<uint16_t>(port + 1);
+	punch_retry_frames = 300; // keep re-sending for ~5s while connecting
+	SendStunBindingRequest(punch_target_host, punch_target_port);
 
 	server_peer = enet_host_connect(enet_host, &address, MAX_CHANNELS, 0);
 	if (!server_peer) {
@@ -212,9 +231,10 @@ void NetManager::Update() {
 		// Check if relay lost connection
 		if (!relay->IsConnected()) {
 			Output::Debug("Multiplayer: Relay connection lost");
-			if (is_client) {
-				host_disconnected = true;
-			}
+			const bool was_client = is_client;
+			// Tear down now so this loss is handled exactly once
+			relay.reset();
+			is_relay = false;
 			is_host = false;
 			is_client = false;
 			game_started = false;
@@ -223,9 +243,13 @@ void NetManager::Update() {
 			host_variables_ready = false;
 			local_peer_id = 0;
 			peers.clear();
+			if (was_client) {
+				host_disconnected = true;
+			}
 			if (disconnect_callback) {
 				disconnect_callback(0);
 			}
+			return;
 		}
 
 		// For client: check join result
@@ -249,6 +273,20 @@ void NetManager::Update() {
 	}
 
 	if (!enet_host) return;
+
+	if (stun_server) {
+		stun_server->Update();
+	}
+
+	// While connecting, keep re-sending STUN requests so the host can observe our
+	// endpoint and punch toward it.
+	if (!is_host && punch_retry_frames > 0) {
+		--punch_retry_frames;
+		if (punch_retry_frames % 30 == 0) {
+			SendStunBindingRequest(punch_target_host, punch_target_port);
+		}
+		if (punch_retry_frames == 0) punch_target_host = 0;
+	}
 
 	ENetEvent event;
 	while (enet_host_service(enet_host, &event, 0) > 0) {
@@ -304,7 +342,7 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 					reject.write(std::string("Server is full"));
 					ENetPacket* pkt = enet_packet_create(reject.data(), reject.size(),
 						ENET_PACKET_FLAG_RELIABLE);
-					enet_peer_send(event.peer, CHANNEL_RELIABLE, pkt);
+					SendPacket(event.peer, CHANNEL_RELIABLE, pkt);
 					enet_packet_destroy(event.packet);
 					break;
 				}
@@ -339,7 +377,7 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 				}
 				ENetPacket* apkt = enet_packet_create(accept.data(), accept.size(),
 					ENET_PACKET_FLAG_RELIABLE);
-				enet_peer_send(event.peer, CHANNEL_RELIABLE, apkt);
+				SendPacket(event.peer, CHANNEL_RELIABLE, apkt);
 
 				// Notify all other peers
 				PacketWriter joined(PacketType::PlayerJoined);
@@ -351,7 +389,7 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 					if (p.peer_id != new_id && p.peer) {
 						ENetPacket* jpkt = enet_packet_create(joined.data(), joined.size(),
 							ENET_PACKET_FLAG_RELIABLE);
-						enet_peer_send(p.peer, CHANNEL_RELIABLE, jpkt);
+						SendPacket(p.peer, CHANNEL_RELIABLE, jpkt);
 					}
 				}
 
@@ -373,14 +411,25 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 					packet_callback(pi->peer_id, event.packet->data, event.packet->dataLength);
 				}
 
-				// Also relay to other clients (except sender)
+				// Also relay to other clients (except sender). PlayerPosition carries the
+				// sender's peer_id at bytes 1-2; stamp the true id so clients cannot
+				// impersonate another player.
 				if (ptype == PacketType::PlayerPosition || ptype == PacketType::ChatMessage) {
+					std::vector<uint8_t> stamped;
+					const uint8_t* out_data = event.packet->data;
+					size_t out_len = event.packet->dataLength;
+					if (ptype == PacketType::PlayerPosition && out_len >= 3) {
+						stamped.assign(out_data, out_data + out_len);
+						stamped[1] = static_cast<uint8_t>(pi->peer_id & 0xFF);
+						stamped[2] = static_cast<uint8_t>((pi->peer_id >> 8) & 0xFF);
+						out_data = stamped.data();
+						out_len = stamped.size();
+					}
 					for (auto& p : peers) {
 						if (p.peer != event.peer && p.peer) {
-							ENetPacket* rpkt = enet_packet_create(event.packet->data,
-								event.packet->dataLength,
+							ENetPacket* rpkt = enet_packet_create(out_data, out_len,
 								ptype == PacketType::PlayerPosition ? 0 : ENET_PACKET_FLAG_RELIABLE);
-							enet_peer_send(p.peer, ptype == PacketType::PlayerPosition ?
+							SendPacket(p.peer, ptype == PacketType::PlayerPosition ?
 								CHANNEL_UNRELIABLE : CHANNEL_RELIABLE, rpkt);
 						}
 					}
@@ -403,7 +452,7 @@ void NetManager::HandleServerEvent(ENetEvent& event) {
 					if (p.peer_id != pid && p.peer) {
 						ENetPacket* lpkt = enet_packet_create(left.data(), left.size(),
 							ENET_PACKET_FLAG_RELIABLE);
-						enet_peer_send(p.peer, CHANNEL_RELIABLE, lpkt);
+						SendPacket(p.peer, CHANNEL_RELIABLE, lpkt);
 					}
 				}
 
@@ -432,7 +481,7 @@ void NetManager::HandleClientEvent(ENetEvent& event) {
 			join.write(DiscordIntegration::GetDiscordAvatarHash());
 			ENetPacket* pkt = enet_packet_create(join.data(), join.size(),
 				ENET_PACKET_FLAG_RELIABLE);
-			enet_peer_send(server_peer, CHANNEL_RELIABLE, pkt);
+			SendPacket(server_peer, CHANNEL_RELIABLE, pkt);
 			break;
 		}
 		case ENET_EVENT_TYPE_RECEIVE: {
@@ -608,6 +657,58 @@ void NetManager::HandleClientEvent(ENetEvent& event) {
 	}
 }
 
+void NetManager::PunchEndpoint(uint32_t host, uint16_t port) {
+	if (!enet_host) return;
+	ENetAddress addr;
+	addr.host = host;
+	addr.port = port;
+	// Small non-ENet payload: received peers simply discard it while the
+	// datagrams open the NAT mappings we need.
+	static const enet_uint8 punch[8] = {'E', 'P', 'U', 'N', 'C', 'H', '!', '!'};
+	ENetBuffer buf;
+	buf.data = const_cast<enet_uint8*>(punch);
+	buf.dataLength = sizeof(punch);
+	for (int i = 0; i < 3; ++i) {
+		enet_socket_send(enet_host->socket, &addr, &buf, 1);
+	}
+	Output::Debug("Multiplayer: Punched hole toward {}:{}", host, port);
+}
+
+void NetManager::SendStunBindingRequest(uint32_t host, uint16_t port) {
+	if (!enet_host || host == 0) return;
+	ENetAddress addr;
+	addr.host = host;
+	addr.port = port;
+
+	// RFC 5389 Binding Request: type, length 0, magic cookie, transaction id
+	enet_uint8 req[20] = {};
+	req[0] = 0x00;
+	req[1] = 0x01;
+	req[4] = 0x21;
+	req[5] = 0x12;
+	req[6] = 0xA4;
+	req[7] = 0x42;
+	static uint32_t counter = 0;
+	const uint32_t seed = ++counter ^ static_cast<uint32_t>(host) ^ (static_cast<uint32_t>(port) << 16);
+	for (int i = 0; i < 12; ++i) {
+		req[8 + i] = static_cast<enet_uint8>(seed >> ((i % 4) * 8)) ^ static_cast<enet_uint8>(i * 37);
+	}
+
+	ENetBuffer buf;
+	buf.data = req;
+	buf.dataLength = sizeof(req);
+	enet_socket_send(enet_host->socket, &addr, &buf, 1);
+}
+
+void NetManager::SendPacket(ENetPeer* peer, int channel, ENetPacket* pkt) {
+	if (!pkt) return;
+	if (!peer || enet_peer_send(peer, channel, pkt) != 0) {
+		// ENet does not take ownership when the send fails
+		enet_packet_destroy(pkt);
+		Output::Debug("Multiplayer: Failed to send packet");
+	}
+}
+
 void NetManager::Broadcast(const PacketWriter& packet, bool reliable) {
 	if (is_relay && relay && is_host) {
 		relay->ForwardToAll(packet.data(), packet.size());
@@ -621,7 +722,7 @@ void NetManager::Broadcast(const PacketWriter& packet, bool reliable) {
 			if (p.peer) {
 				ENetPacket* pkt = enet_packet_create(packet.data(), packet.size(),
 					reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
-				enet_peer_send(p.peer, reliable ? CHANNEL_RELIABLE : CHANNEL_UNRELIABLE, pkt);
+				SendPacket(p.peer, reliable ? CHANNEL_RELIABLE : CHANNEL_UNRELIABLE, pkt);
 			}
 		}
 	}
@@ -637,7 +738,7 @@ void NetManager::SendTo(uint16_t peer_id, const PacketWriter& packet, bool relia
 	if (pi && pi->peer) {
 		ENetPacket* pkt = enet_packet_create(packet.data(), packet.size(),
 			reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
-		enet_peer_send(pi->peer, reliable ? CHANNEL_RELIABLE : CHANNEL_UNRELIABLE, pkt);
+		SendPacket(pi->peer, reliable ? CHANNEL_RELIABLE : CHANNEL_UNRELIABLE, pkt);
 	}
 }
 
@@ -651,7 +752,7 @@ void NetManager::SendToServer(const PacketWriter& packet, bool reliable) {
 
 	ENetPacket* pkt = enet_packet_create(packet.data(), packet.size(),
 		reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
-	enet_peer_send(server_peer, reliable ? CHANNEL_RELIABLE : CHANNEL_UNRELIABLE, pkt);
+	SendPacket(server_peer, reliable ? CHANNEL_RELIABLE : CHANNEL_UNRELIABLE, pkt);
 }
 
 void NetManager::Disconnect() {
@@ -661,11 +762,20 @@ void NetManager::Disconnect() {
 		relay.reset();
 	}
 
+	// Clean up hole punching state
+	if (stun_server) {
+		stun_server.reset();
+	}
+	punch_retry_frames = 0;
+	punch_target_host = 0;
+	punch_target_port = 0;
+
 	if (is_client && server_peer) {
 		enet_peer_disconnect(server_peer, 0);
-		// Flush
+		// Drain briefly (bounded so the main loop never stalls for a second)
 		ENetEvent event;
-		while (enet_host_service(enet_host, &event, 1000) > 0) {
+		int drain_attempts = 25;
+		while (drain_attempts-- > 0 && enet_host_service(enet_host, &event, 10) > 0) {
 			if (event.type == ENET_EVENT_TYPE_RECEIVE) {
 				enet_packet_destroy(event.packet);
 			} else if (event.type == ENET_EVENT_TYPE_DISCONNECT) {
@@ -857,11 +967,23 @@ void NetManager::HandleRelayForward(uint16_t source_id, const uint8_t* data, siz
 				packet_callback(pi->peer_id, data, len);
 			}
 
-			// Relay to other clients if needed
+			// Relay to other clients if needed. PlayerPosition carries the sender's
+			// peer_id at bytes 1-2; stamp the true id so clients cannot impersonate
+			// another player.
 			if (ptype == PacketType::PlayerPosition || ptype == PacketType::ChatMessage) {
+				std::vector<uint8_t> stamped;
+				const uint8_t* out_data = data;
+				size_t out_len = len;
+				if (ptype == PacketType::PlayerPosition && len >= 3) {
+					stamped.assign(data, data + len);
+					stamped[1] = static_cast<uint8_t>(source_id & 0xFF);
+					stamped[2] = static_cast<uint8_t>((source_id >> 8) & 0xFF);
+					out_data = stamped.data();
+					out_len = stamped.size();
+				}
 				for (auto& p : peers) {
 					if (p.peer_id != source_id) {
-						relay->ForwardTo(p.peer_id, data, len);
+						relay->ForwardTo(p.peer_id, out_data, out_len);
 					}
 				}
 			}

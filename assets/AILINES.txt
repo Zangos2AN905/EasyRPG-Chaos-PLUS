@@ -1,0 +1,1475 @@
+who wants to trade a gun for a potion
+who is the mayor right now
+mayor open the gate please
+mAYOR
+warrant him he killed me at spawn
+admin he rdmed me at spawn
+I literally just spawned
+who put a printer in the sewer
+the printers are not printing
+money is not spawning, is the economy broken
+gun dealer open?
+gun dealer closed again
+front door is locked, let me in
+come raid the sewers, we have cookies
+basing here, do not shoot, we are friendly
+friendly base, do not enter
+if you enter my base you get shot, warning
+lockdown in 30 seconds
+who called the lockdown
+hitman contract on me, nice
+whoever put a warrant on me, I will find you
+ez
+gg gg
+skill issue
+no u
+ez clap
+that was the worst raid I have ever seen
+we lost the base in 4 seconds
+why do my props keep disappearing
+props are not spawning, anyone else
+I am stuck inside a prop
+I am stuck in the floor
+I am stuck in the wall, help
+I am inside the map now, how do I get out
+physics bugged my car into orbit
+somebody prop killed my hud
+stop prop surfing
+prop push fail
+who is throwing chairs at spawn
+who is spawning chairs everywhere
+my ragdoll is not despawning
+there is a ragdoll in the hall and it is staring at me
+who is playing music in the base
+who is playing music at spawn
+turn off the music please
+the music is de-synced with the map
+the MIDI is playing at the wrong tempo
+the sound effects are all wrong, is it a sample rate thing
+my audio is nothing but piano, why is everything piano
+I have no MIDI device, is that a me problem
+my music stopped when I entered the base
+someone queued a track on the boombox, please stop
+the radio is stuttering every second
+this map song is 3 seconds long and loops forever
+I can hear the horror mode music through the wall
+why is the darkness overlay not going away
+horror mode is way too dark, I cannot see my base
+the horror enemy is in my base, how
+the Rawberry is at the door
+do not open the door, it is at the door
+I survived the horror round, ama
+who turned on horror mode in a chill server
+undertale mode hits too hard for a casual lobby
+I died to the first attack, this is unfair
+the fight bar is not moving
+my HP name font is missing, everything is boxes
+the dialogue font is tiny on this map
+the fonts are all tofu boxes, is that a charset issue
+my charset is invisible
+my charset is facing the wrong way while walking
+my character turned into a black square
+the character sprite is half missing in the tileset
+my tileset has holes in it
+the tilemap is broken on the second map
+my automap broke the passability
+I can walk through walls now
+switches are not working at all
+my common event never fires
+the parallel process is running twice
+my variable is not syncing between players
+the battle transition froze everyone
+my battle system is stuck on the command window
+I got into a random encounter in the lobby
+who has random encounters enabled
+why am I getting encounters while chatting
+I exported my game and forgot the RTP
+why is the RTP missing again
+RTP not found, I am not downloading 200mb again
+the game says RPG_RT.exe is not found
+I renamed my game folder and now everything is gone
+the LDB file will not parse
+liblcf parse error on my database, what did I break
+that error is a liblcf thing, go read the wiki
+my save file got corrupted after the desync
+the old player handled this in one line of code
+this fork is peak, do not argue
+Chaos Plus is peak actually
+day one of waiting for the Linux build
+the build I have is from a nightly, do not judge me
+I am on the CRT build and it still crashes
+my screen looks like a VHS tape and I love it
+who turned on the CRT shader in a lobby
+is the underwater mode supposed to drown me
+I am drowning in a puddle
+the drowning music started and now I am scared
+my oxygen bar is empty and I am still alive
+who enabled split mode in the middle of a raid
+split screen is not a multiplayer benefit
+the spectator camera is stuck on a corpse
+I am dead but I can still see the raid, useful
+can I spectate the admin instead
+the spy tablet is showing me nothing
+someone is on the boombox channel, stop
+the voice chat is broken, use the text chat
+text chat is the only chat, voice never worked
+I type in chat and nothing happens
+my keyboard letters are dead in the chat box
+the chat box ate my message
+long messages get cut off, is that intended
+every message I send becomes a system line
+why is my name purple in chat
+why does my chat line have a bracket prefix
+who is spamming the same line
+we get it, you copied a line from a file
+someone put AILINES into the wrong folder
+that line is clearly from an AI lines file
+the AI characters wrote better dialogue than the game
+the AI rewrote my event dialogue and it is funnier
+who let the AI character run the shop
+the AI character is flirting with my NPC
+turn off the AI characters, they grief the events
+the AI character joined the raid without asking
+the AI character is standing in the doorway again
+AI characters do not pay taxes
+AI characters should not be able to vote
+the AI character is the mayor and I hate it
+mod loader loaded my mod but nothing happened
+my mod is enabled but the spawns are missing
+I wrote an AngelScript mod and it broke everything
+my Lua mod crashed the server on load
+do not load random mods mid-session, please
+which mod adds the flying car
+the mod menu says my mod has a bad manifest
+the mod assets folder is empty, do you have the path right
+my sprite from the mod is just a red question mark
+can we remove the mod that adds the loud siren
+I am not installing another mod just to see one hat
+the server mod list is longer than the MOTD
+stop uploading mods during the raid
+I do not trust anyone whose name has Xx in it
+xX_Dark_Slayer_Xx is at it again
+who is the guy with 4000 hours
+that guy has 4000 hours and still cannot open a door
+new player here, how do I make money
+new player, how do I get a gun license
+new player, how do I leave this room
+how do I crouch
+how do I talk in chat
+how do I open the shop
+where is the shop
+where do I buy a printer
+the tutorial is broken, it is just a blank message box
+I followed a guide and it was for the old player
+do not follow guides, follow the MOTD
+someone teach me the economy, I am poor
+I have 3 money
+I have been saving since the server started
+I sold my printer and now I regret it
+the economy is ruined and it is somehow my fault
+someone gave me a million by accident and took it back
+who is donating money to randoms
+I am accepting donations
+who put a bounty on me for 1 money
+I will pay you 500 to stop shooting me
+that is not how a bounty works
+do not kill the mayor, we need the lockdown button
+the mayor is a criminal, run
+come get me at the docks
+I am on the roof, you cannot reach me
+he flew up to the roof, that is a hack
+that is a boost, not a hack
+there are no boosts in this mode
+admin, he is using an event to teleport
+teleporting through the map is a known bug, report it
+the collision on this map is a joke
+I fell through the spawn platform
+this map has no floor on the second level
+do not walk on the left side, there is no floor
+who built this map, it is a maze
+the map is too dark to raid
+the map is too bright, my eyes
+the map fog is eating my hud
+I cannot find my base, the map changed
+did the map just change while I was in it
+I got kicked to the lobby during the map change
+the map vote is a scam, that map always wins
+vote for the city map or I riot
+why do people always vote the same map
+the vote menu is just 9 versions of the same map
+I abstain from the vote and still get blamed
+the vote passed and now everything is on fire
+this new map has no sound, is that intended
+is the new map a port from the old player
+the port has broken tiles and I love it anyway
+who is standing on the spawn point
+move off spawn or you get kicked
+spawn camping is a bannable offense
+safe zone means no killing, learn the rules
+I got killed in the safe zone and nothing happened
+report it with evidence or it did not happen
+you have no proof
+I have a screenshot
+the screenshot is just your hud
+how do you take screenshots in this game
+f12 is not working for me
+my game freezes when I press f12
+the game freezes when I open any menu, help
+the menu never closes, I am trapped in the options
+I changed a setting and now the game is unplayable
+I set the resolution too high and it crashed
+my window is off screen and I cannot click anything
+alt f4 does not work, I have to end the task
+task manager is the true final boss
+does anyone else crash on map load
+does anyone else desync every 10 seconds
+the desync is so bad my hits do not register
+my damage is not applying to the boss
+the boss has a million hp, is that intended
+who balanced this enemy
+the enemy has 4 attacks and none of them miss
+I dodged and still got hit
+the hitbox is a square around the sprite
+the hitbox is the entire screen apparently
+the fight bar passes through the boss
+I cannot aim the attack, it just flies off
+my bullet went into the wall and stayed there
+the bullet is stuck and now it is mine
+why does the enemy spare me and then kill me
+mercy is a trap, do not trust it
+I spared everyone and got nothing
+who is the final boss here
+the final boss is the server host
+the host is lagging and blaming us
+the host is playing on a laptop from 2009
+the host is hosting from the server room, be grateful
+the host restarted and lost everyones base
+does anyone have the ip for the other server
+this server has no password, that is the problem
+someone set a password and now we are locked out
+the password is in the motd
+we should make a discord
+this server should have a discord
+we had a discord, it died
+the discord is just 3 people posting about fonts
+I got banned from the discord for linking RTP
+the ban was deserved
+appeal on the forums
+the forums are down
+the forums have been down since the fork started
+the website is a placeholder that says WIP
+the README says WIP and it is very honest
+I read the README and learned nothing
+the docs say Linux soon, it has said that for months
+who is maintaining this
+one person is maintaining this and it shows
+one person is maintaining this and I am grateful
+the changelog is just the word fixes
+patch notes: fixed some stuff, added a boombox
+the boombox is the best feature here
+the boombox is the worst feature here
+do not touch the boombox, it is load bearing
+I put my music in the boombox and everyone left
+my song choice killed the server
+whoever queued that track owes me an apology
+we should have a radio station instead
+the radio station is 4 songs and 2 of them are the same
+the same song twice in a row, nice
+I muted the game and it still plays
+muting does nothing, is that a bug
+the volume slider does nothing
+the settings menu does not save anything
+my settings reset every launch
+my keybinds reset and now I cannot move
+I cannot move, is anyone else frozen
+I can move but the camera is stuck
+the camera is stuck in a wall
+the resolution changed my camera forever
+the viewport is rendering the map on the hud
+there is a second view of the map in the corner
+nobody knows what that corner window is for
+that window is the other players position, allegedly
+the position sync is one frame behind and it shows
+players teleport 5 tiles ahead and come back
+that is not lag, that is the interpolation
+do not blame interpolation for everything
+the sync is great for once, praise the fork
+it synced all night and nobody crashed
+we went a whole hour without a desync
+someone crashed the moment he joined
+the new player crashed the server
+the new player loaded 200 mods
+the new player is the admin on an alt
+I am not an alt, I just have no hours
+hours do not matter, I have been playing since the beta
+this fork has a beta and I did not know
+the beta is the only version, there is no stable
+the stable build is the nightly from last week
+I am running a build from before the boombox existed
+why is my version older than the server
+version mismatch, please update or beg
+the game said my version is unsupported
+I updated and now nothing loads
+I updated and everything works, nice
+reinstall it, that fixes 90 percent of this
+turn it off and on again
+have you tried the other build
+have you tried the CRT build, it fixed my fonts
+the CRT build is worse, do not listen to him
+I fixed my issue by renaming the folder
+the folder had a space in it and that broke everything
+paths with spaces break literally everything
+do not put the game in the downloads folder
+do not run the game from a zip
+my saves are in the wrong folder
+my saves are gone after the update
+who moved my save folder
+back up your saves before you complain
+I lost 4 hours of progress and I am still here
+we all lost progress, that is the multiplayer experience
+I rejoined and my base was gone
+I rejoined and my character was naked
+my equipment vanished on rejoin
+the inventory did not sync and I lost my gear
+the inventory is cursed, do not open it
+my inventory is full of items I never picked up
+I have 40 of the same weapon
+the shop sold me a weapon that does not exist
+that weapon is a placeholder and it does damage anyway
+placeholder graphics are the aesthetic here
+I like the placeholder look, it has charm
+the charm is the only reason I am here
+the community is the only reason I am here
+I am here because the other server kicked me
+I am here because my friend dragged me in
+my friend says this is good and he lies constantly
+who is down for a raid at the mansion
+the mansion is off limits during the vote
+I raided the mansion and got nothing
+the loot table is empty, is that intended
+the loot is all cheese
+cheese is the meta
+I am not eating the cheese again
+someone is hoarding all the cheese
+the cheese economy is out of control
+admin nerf the cheese
+do not nerf the cheese, that is all we have
+bring back the old cheese stats
+the old cheese was better and you know it
+nostalgia is not a balance argument
+it is, actually
+stop arguing and help me open this door
+the door needs a key and the key does not spawn
+the key is behind the door, brilliant design
+the puzzle is unsolvable, I checked
+the puzzle solved itself when I walked away
+the event triggered twice and teleported me out
+I am outside the map again
+I fell into the void and bot is fine with it
+the void is warm actually
+the void has better loot than the mansion
+put a base in the void next time
+the base in the void worked and I feel powerful
+who put torches in the void
+the lighting does not work outside the map
+the lighting does not work at all in multiplayer
+the lights flicker for everyone at once
+that flicker is a feature, do not report it
+I reported the flicker and got a reply that says known
+known issues are the roadmap
+the roadmap is a sticky note
+the sticky note says fix the fonts
+the fonts are fixed and now everything else is broken
+the fonts render too wide and my hud is off screen
+the font is missing a glyph and the text stops there
+any word with an apostrophe breaks the message box
+the message box cannot do two lines
+long names overflow the chat window
+my name is 4 characters and it still overflows
+the chat window is too small for chat
+make the chat window bigger, it is a chat window
+the chat window scrolls to the bottom and hides history
+I missed an important message because of autoscroll
+that message was just someone saying ez
+what did the admin say, I missed it
+the admin said stop, so stop
+I will keep doing it until I get a warning
+that is how you get a ban
+I am fine with a ban, I have school tomorrow
+it is 3am, go to sleep
+sleep is for people with a stable build
+I will sleep when the server restarts
+the server restarted and I am still here
+I never left, my game just froze on the restart screen
+the restart screen has been up for 10 minutes
+the host forgot to press the button
+the host is eating dinner, be patient
+the host is always eating dinner
+let the host eat
+the host has done more for this server than god
+god did not write the netcode
+the netcode is held together by hope
+hope and one function called fix
+that function is 900 lines and I love it
+I read the source and I am a changed man
+I read the source and I want to lie down
+this codebase is a haunted house
+the haunted house has good multiplayer though
+the multiplayer works and that is a miracle
+do not touch the netcode, it is load bearing
+touching the netcode is how you delete the lobby
+the lobby is empty and it is not my fault
+the lobby shows 0 players and 12 in the game
+the player count is a suggestion
+the server browser shows servers that do not exist
+I joined a server and it was my own
+every server in the list is the same server
+the relay is one guy with a laptop
+the relay is a stun server with a dream
+the relay went down and we all got kicked
+the relay is back up, everyone rejoin
+rejoining is the whole game
+I have joined 14 times tonight
+the connection failed but it says I am connected
+I am connected and it says I am not
+half the lobby sees me, half does not
+I exist for 3 players and that is enough
+the ghost players in the lobby are the old connections
+do not talk to the ghost players
+the ghost player answered me
+do not encourage it
+I hear typing but no text appears
+I hear the chat sound and nothing
+the chat sound plays for my own messages too
+the sound plays twice for my messages
+my own echo is in the chat
+I am hearing double, is that a patch
+the audio is offset by 200ms and it is maddening
+I cannot play with audio, I play on mute
+playing on mute is the pro move
+pro players use the piano MIDI and nothing else
+I use the boombox and hope for the best
+the boombox carried this server
+the boombox is why the server died
+a good song brought everyone back
+a bad song cleared the lobby in 5 seconds
+we should vote on songs
+we already vote on everything, enough voting
+no more voting, just play the game
+just play the game is not advice
+it is advice, look at me, I am playing
+you are standing in spawn talking
+standing in spawn talking is the game
+the real game was the chat lines we wrote along the way
+someone save this chat to a file
+put it in AILINES
+put every line in AILINES and let the AI read it
+the AI will read it and become one of us
+the AI will read it and leave the server
+the AI will read it and start a raid
+the AI will read it and say ez
+the AI will read it and fix the fonts
+the AI will read it and break the netcode again
+the AI already fixed the netcode, read the changelog
+the changelog says fixes and nothing else
+I want a changelog with the word netcode in it
+I want a changelog with the word cheese in it
+I want a changelog with the word horror in it
+horror mode deserves a changelog
+horror mode deserves a balance pass
+horror mode deserves to be removed
+keep horror mode, it scares the new players
+keep the new players, we need the money
+keep the money, we need the economy
+keep the economy, we need the cheese
+this conversation is a loop and I am inside it
+someone break the loop
+the loop is load bearing
+the jail is nicer than my base
+do not jail him, he is my friend
+I got jailed for something I did in 2008
+the sit room is somewhere in the skybox
+put me in the sit, I want to explain
+I am in a sit right now, do not shoot me
+he is in a sit, that is why he is standing still
+who is the judge today
+the trial lasted 3 seconds
+I demand a trial by combat
+I am my own lawyer and that is legal here
+the courthouse is the sewer and I accept that
+unarrest me
+I am stuck in handcuffs and my inventory is locked
+handcuffs are the only inventory page that works
+the arrest command does nothing, custom job issue
+who broke the jail door
+the jail door opens for the criminal but not the cop
+I escaped the jail through the wall, report it or not
+I saw a cop walk through a locked door
+cops cannot fly, that is a hack
+I am a hobo, I have legal immunity in the tunnels
+hobos are not a protected class
+the mayor outlawed my job and I am still doing it
+the mayor is asleep at the podium again
+the mayor used the lockdown button on an empty server
+lockdown was called for no reason, riot
+the lockdown did nothing, doors still open
+demote the mayor
+I ran for mayor and lost to a guy who was afk
+I voted for myself and I still lost
+the ballot box ate my vote
+the election was 4 seconds long
+do not demote him mid raid, that is cowardly
+the demote took my gun with it
+my job changed and my tools vanished
+I lost my keys when the job changed
+keys are cosmetic, doors open for anyone with a crowbar
+the crowbar opens everything and the lock is fake
+the lock is real, the door is fake
+the door hits me when it fades, that is a prop kill
+fading doors should not be able to kill
+the base has a fading door inside the fading door
+there are six fading doors and one room
+this base is 90 percent doors
+who builds a base out of one way glass
+the base is a maze with a shop at the end
+I got lost in a base and had to leave the game
+his base has a sign that says no raiding, that is not a law
+a sign is not a rule, I read it and raided anyway
+the warning sign was a warning, my fault
+KOS signs are not valid, learn the rules
+he shot me for standing on his lawn
+lawns are not spawn points, stop shooting
+I was walking to the shop and got killed twice
+NLR means I come back at spawn and know nothing
+I came back and he killed me at spawn again
+that is spawn camping and it is bannable
+third time at spawn, he is doing it on purpose
+I have a clip of all three deaths
+raid started and everyone ran to the vault
+the vault is a prop that does not open
+the vault key spawns under the map
+the loot is in a box behind the base
+we raided for 20 minutes and found one cheese
+the raid alarm is a MIDI file and it is 12 seconds long
+the alarm is louder than the gunfire, who made it
+the alarm never stops after the raid ends
+the alarm is still looping and the base is empty
+the siren made me turn the volume down forever
+raid is over, do not keep shooting my props
+you cannot raid a base that has no owner
+the base owner disconnected mid raid
+his props stayed and they are cursed
+the props are floating because the owner left
+who owns this tower of printers
+the tower of printers killed my frame rate
+the tower has 40 printers and one light
+someone stacked printers to the skybox
+the skybox is full of props now
+my prop limit hit and I did not even build much
+I have 2 props and I am over the limit
+the prop limit counts my keys, apparently
+give me a bigger prop limit, I am a builder
+the builder job has a smaller limit than the hobo
+hobo has no limit and it is unfair
+I will trade my prop limit for your gun
+defense means staying inside, not chasing the raider
+I chased the raider across the map and lost
+the raider hid in the sewer with my own gun
+he took my gun and shot me with it, that is legal
+guns drop nothing when you die here
+guns despawn in 30 seconds and mine did
+I died holding the only good gun on the server
+the ammo box gave me 4 bullets
+I reloaded and it ate my magazine
+the reload animation is one frame and I missed it
+my gun fires the wrong direction when I look down
+aiming down sights turns my gun into a prop
+shooting while sprinting teleports me a tile
+the shop has one item and it costs everything
+everything in the shop is out of stock
+the shop restocks at the exact second I leave
+I have no money and no way to get money
+the money printer is printing at 1 per minute
+the printer needs power and there is no power
+the power plant job is broken so nothing has power
+the power went out and the map went dark
+the map going dark is just horror mode starting
+horror mode started without telling anyone
+the horror enemy is immune to guns, nice
+guns do nothing to it, only the flashlight works
+the flashlight is a prop and it does not light anything
+the flashlight is the only light and it flickers
+my light flickers because of the fog
+the fog is inside the base
+weather is raining inside the shops
+the rain follows me into the vault
+I like the rain inside, do not fix it
+do not fix the rain, fix the printers
+I used a skill and it healed the enemy
+healing the enemy is a feature of my class
+my class has no skills, only the attack button
+the attack button does 1 damage to a boss with 9000 hp
+the boss has 9000 hp and I have 12
+the boss heals 500 every turn
+we cannot out damage the healing, retreat
+retreat does not work in this dungeon
+escape failed 9 times in a row
+the escape chance is 1 percent and I felt it
+the battle gauge fills and then resets
+the ATB bar is stuck at the top and nothing happens
+my turn was skipped because I was typing
+typing in chat should not consume my turn
+I died while typing, that is the real penalty
+poison killed me after the battle ended
+the poison state never wears off
+antidote does nothing to the poison
+the poison is not poison, it is a bug
+paralysis made me watch the boss for 6 turns
+the silence state muted my chat too, funny bug
+confused state made me attack my own base
+I hit my teammate and the game said nice
+the game blamed me for the friendly fire
+team damage is on in a party mode, why
+our party does not share experience
+the party leader took all the gold
+the gold split gave me 0 and him 4000
+the shared inventory is a trap
+the shared inventory is the best part
+someone used my last potion in the safe zone
+do not use potions in the safe zone
+the item animation plays for 4 seconds per item
+using an item takes longer than the fight
+the item menu is 40 pages long
+sort the item menu, please
+the weapon shop sells a weapon with no attack stat
+the armor shop is selling a hat with 0 defense
+my hat is the strongest item in the game
+the equipment menu unequipped my armor mid fight
+my armor broke and nothing told me
+durability is a hidden stat, fun
+the stat menu does not show defense
+I leveled up and gained nothing
+level up only raised my max hp by 1
+the exp curve is a wall at level 12
+I grinded 4 hours to reach level 13
+the exp share is off and nobody can turn it on
+the encounter rate is way too high for the lobby
+I got into 12 encounters walking to the shop
+the encounter screen has no escape button
+the battle music is a 6 second loop
+the battle music restarted for every encounter
+the victory fanfare is missing a channel
+the fanfare plays after a loss
+the game over screen played during a win
+the game over screen is the loading screen
+the game over screen counts down to nothing
+the revival item is in the shop but I am dead
+respawning costs half my gold and I have none
+the screen shake is shaking the chat window
+the screen shake never stops after the explosion
+the flash went white and stayed white
+the flash made my eyes water and my base is now white
+the tint command turned the whole map pink
+the pink tint is stuck and the admin says it will pass
+it did not pass, we played the whole raid in pink
+the show picture command put a picture over my hud
+there is a picture of a tree stuck in the corner
+the picture follows the camera and it is haunted
+who put a picture of themselves as the weather
+the panorama is playing at the wrong speed
+the panorama broke into stripes
+the transition is a checkerboard and it flashes
+the fade to black left us in the dark permanently
+the map fade happens every 5 seconds now
+the event triggered 30 times in one second
+the parallel event spams the same sound
+the sound spammed the event into a crash
+a parallel process is making my screen scroll
+the map scrolls by itself and it hurts
+the camera drifted into the ocean tiles
+the ocean tiles are static and it looks wrong
+the waterfall tile has one frame
+the water autotile is missing, we get a black strip
+the black strip is the only water and I swim in it
+swimming in a black strip is actually nice
+the boat is on the land and I cannot use it
+the boat works on land and not water, classic
+the vehicle banned me from the raid
+I got stuck on the boat and the game crashed
+the move route walked my character off the map
+the move route is spinning my character in place
+someone's character is walking into a wall forever
+that is a player holding a key, not an event
+I have been holding the key for 3 minutes, it is me
+stepping animation is off so I look like a ghost
+transparent flag is on and I am a real ghost
+do not turn on transparency in a raid
+I am transparent and I paid for it
+the resolution scaled my pixels into mush
+integer scaling should be the default
+nearest neighbor or nothing
+the tv stretches the game to a wrong shape
+my dialogue box is off the left of the screen
+the hud is at the top and I cannot read it
+the hud overlaps the chat in a raid
+the chat is under the hud and I missed a warning
+the warning was important and invisible
+the message box is 2 lines tall and my name is 12 letters
+my name breaks the message box
+the apostrophe in my line ended the message
+the comma rendered as a box
+every third character is a box in japanese text
+the korean text shows as squares
+the cyrillic font is a different size and it looks weird
+the font fallback kicked in mid word
+the bold text is just the same font twice
+the tiny font is 4 pixels and unreadable
+the big font is the same as the tiny font
+the fonts folder has 30 files and one works
+I added a font and the game ignored it
+the game uses its own font and my font pack is useless
+I installed a font pack and the game got slower
+my load time went from 2 seconds to 90
+the loading bar is fake, it finishes and then waits
+the loading screen is just the words loading
+the loading screen has been up for 5 minutes
+my disk is at 100 percent and it is this game
+the game is using 6gb of ram for a 32mb game
+the ram usage climbs and never comes down
+the memory leak is a feature, it releases on crash
+it did release on crash, thanks
+my cpu is at 100 percent on one core
+one core only, in 2026
+multithreading is on the roadmap sticky note
+the sticky note fell off
+my frame rate drops when the chat is busy
+every chat message costs me 2 fps
+the chat is a slideshow and the game is fine
+the game runs at 400 fps and everything is too fast
+the turbo key is stuck on and the animations skipped
+I held turbo and walked through a wall
+turbo made the music play at 3x
+the music is at 3x and it sounds like a different song
+I like the 3x music, keep it
+my controller drifts and the menu walks itself
+the game picked up my racing wheel as a pad
+the game picked up my keyboard as a paddle
+my mouse controls the cursor and the game at once
+clicking the window pauses everything
+the window loses focus and the game freezes
+alt tabbing crashed the game again
+fullscreen on the second monitor black screens me
+my second monitor is not detected
+the game opened on the wrong monitor at 2am
+f1 opened a debug menu and I saw everything
+the debug menu let me walk through walls
+I am not abusing the debug menu, I am testing
+the debug menu shows the other players invisible
+I can see the enemy AI path and it is a straight line
+the AI walks into a wall and calls it a strategy
+the wiki says one thing and the game says another
+the wiki is 6 years old and it shows
+the wiki page for chat is empty
+the wiki has a page for the boombox and nothing for the bugs
+I read the manual and it is a placeholder
+the manual says read the manual
+the faq answers 3 questions and none of mine
+the issue tracker is a wall of wontfix
+my bug is a duplicate of a bug from 2019
+my bug is known and unscheduled
+the roadmap is 4 bullet points and one of them is fonts
+the release notes fit in one screenshot
+the changelog is the commit messages
+the version says nightly and nothing else
+the version string is longer than the changelog
+the build number is a date and I am behind
+the nightly is from last month and it claims to be today
+the launcher downloaded the old build over the new one
+the updater deleted my settings
+the updater works for the first time and I am scared
+the installer asked for a folder and then ignored it
+the installer put the game in program files and saves failed
+saves fail in program files, classic
+my antivirus quarantined the game
+the antivirus ate the exe and the shortcut stayed
+the game runs but the icon is a blank page
+the window title is a file path
+the window title is the build hash
+the crash dialog has no text
+the crash log is 400mb
+the crash log is empty and the game is fine
+sending the crash log is harder than the bug
+I am on windows and the readme says try linux
+the readme says linux soon and it has said that for a year
+I compiled it myself and it took 2 hours
+my build has no audio because I skipped a library
+my build has no video because I skipped a library
+my build has everything except the thing I wanted
+the CMake flag for chat is called something else
+I enabled a flag and broke the lobby
+default flags are the stable path, trust me
+the preset build worked and it is faster
+the build folder from last month still works, keep it
+deleting the build folder did not fix the desync
+clearing the cache fixed the fonts and nothing else
+my compile errors are all in files I never touched
+the compiler wants a library version that does not exist
+the vendored library is older than the header I include
+the custom mode menu is a wall of text
+custom mode has no description and I picked it anyway
+the custom mode spawned 12 enemies on the spawn point
+the custom mode disabled the hud and the music
+the custom mode is just the base game with a filter
+the mode select has 9 modes and 3 of them are deprecated
+the deprecated mode still connects and breaks the lobby
+do not pick horror in the party lobby
+team party mode has no teams
+team party put everyone on the same color
+I cannot tell who is on my team
+the team colors are two shades of brown
+chaotix mode is the best mode, no notes
+chaotix is unplayable and I love it
+the max player setting is gone and I miss it
+we need 16 slots for a proper raid
+4 players is not a raid, it is a conversation
+the lobby says 8 players and the game holds 4
+the room list refreshed and deleted the room I am in
+the room code is 6 characters and 2 of them are hidden
+my room code has a zero and an O in it
+the ban list is empty and the ban rules are gone
+the admin file has my name in it and I never joined
+I am on the admin list by accident and it is fun
+the admin commands are text only and I typo everything
+the command list is in a code file, not in the game
+type the command wrong and it gets sent to chat
+my command leaked into chat and looked like a confession
+the mod API has a hook for everything except chat
+the mod hook fires before the map loads
+my mod runs on the wrong map and breaks the walls
+my mod adds a sprite and the sprite is a red question mark
+the red question mark is the official placeholder mascot
+my mod sprite is 2 pixels too wide and the sheet broke
+my sprite sheet is offset by one and walks like a crab
+the crab walk is the best animation on the server
+the mod added a new mode and it desyncs
+the mod added a boombox song and it overrides the map music
+the mod song plays over the horror music
+the mod music plays after the mod is removed
+the mod leftover file is 400mb
+uninstalling the mod left its spawns in the map
+the leftover spawns are hostile and unkillable
+I like the leftover enemies, they are the only content
+the lua mod printed 40 lines of errors on load
+the errors are all about a variable that exists
+the angelscript mod compiled and did nothing
+my script function is never called and I cannot prove it
+the docs for the mod API are 3 lines
+the API example mod is 6 lines and broken
+the lobby shows me in the game twice
+there are two of me and one is stationary
+my clone is standing in a base I never built
+the clone has my items and stole my raid
+my position synced to the wrong player
+I see his character while I control mine
+the sync gave me someone else's direction
+everyone is facing left and walking right
+the walking direction is one tile behind the sprite
+player sprites are 2 tiles ahead of their hitbox
+the hitbox is where I was 5 seconds ago
+I shot where he was and the shot missed
+shooting the ghost position works and that is worse
+the desync rubs the whole base against a wall
+the desync threw my character into the sewer
+the desync fixed itself and took my gun
+the desync is worse when the music is streaming
+the desync is worse in horror mode specifically
+the desync is gone on a 3 player lobby
+3 players is the sweet spot for stability
+the 4th player always crashes the map load
+the 5th player joins and nothing renders
+the lobby froze and the music kept playing
+the music playing while frozen is the worst feeling
+the frozen game still accepted my inputs
+my inputs queued and fired all at once on unfreeze
+the queue fired 40 attacks into a wall
+the unfreeze teleported everyone to spawn
+the spawn teleport is the soft reset, use it
+the soft reset lost the raid progress
+the raid progress lives in a variable and the variable resets
+the variable holds 4 states and one is empty
+switch 12 is flipped for everyone and we do not know why
+who flipped the switch in the sewer
+the global switch resets when the host sneezes
+the host connection dropped for 1 second
+one second of packet loss cost us the whole raid
+the relay routed me through another continent
+my ping is 400 and it feels fine actually
+400 ping and the music is perfectly in sync
+the chat arrived 12 seconds late and confused everyone
+the old chat message arrived after the answer
+late messages make the conversation nonsense
+the conversation is nonsense without the delay too
+the voice channel is 20 seconds behind the game
+the voice and chat disagree about who died
+the kill feed is missing from this mode
+the kill feed is in the source but not in the lobby
+the scoreboard is blank and the score is in a variable
+the scoreboard counts my deaths as kills
+I am new, is this the official server
+this is a fork and nobody tells the new players
+I came from the other fork and I am not going back
+the other fork is 3 commits behind
+3 commits is a whole different game here
+I read every commit and understood one
+someone opened a pull request and it was a chat line
+the pull request added 500 lines to a text file
+500 lines in a text file is a feature somehow
+the maintainer merged it and said nice
+the maintainer closed my pr and said later
+later never came and the bug is still here
+the bug is a feature now, it has its own mode
+the bug has a name and people defend it
+do not remove the bug, we build on it
+removing the bug broke the lobby last time
+every fix breaks the lobby, that is the pattern
+the pattern is: fix, raid, desync, repeat
+we had a stable night once and nobody showed up
+a stable server is a dead server
+the player count is the only bug I care about
+the count went up and the desync went up with it
+I will take the desync for 8 players
+I will take the desync for 4 players
+I will take the desync, honestly
+the community is 12 people and a boombox
+12 people and 2 of them are the same guy
+two accounts is not a community
+the second account is the dedicated server
+the dedicated server is a laptop in a cupboard
+the cupboard server has better uptime than my pc
+my pc reboots during raids and I blame the game
+my pc reboots during the horror music specifically
+the horror music is doing something to my machine
+the horror music is fine and my machine is 12 years old
+12 years old and it runs this better than my new laptop
+the new laptop has no audio drivers
+no audio drivers and I still play every night
+playing without audio is the hardcore mode
+hardcore mode is the normal mode with the music off
+I muted the game to hear the music
+I muted the music to hear the chat
+the chat is mostly noise and I love it
+the noise is the content
+the content is going to be put into a file
+the file will be read by an AI and it will be one of us
+the AI will spam the same line twice and blame lag
+the AI will say ez after losing
+the AI will call me a bot and it is the bot
+the bot called me a bot and I felt something
+I am not a bot, I am a guy with 3000 messages
+3000 messages and none of them are useful
+the useful messages are in the pinned notes
+the pinned notes say do not raid the spawn
+we raided the spawn and it was great
+the spawn raid was the best night on the server
+we should raid spawn again
+the admin raided spawn with us and said nothing
+the admin said nothing all week and then banned 3 people
+the bans were deserved and we all agreed
+we agreed on something, screenshot it
+put the agreement in the motd
+the motd is 4 lines and one is a joke
+the joke is the rule everyone follows
+I follow the joke and ignore the real rules
+the real rules are behind a command I never type
+typing !rules spawns a wall of text in chat
+the wall of text pushed the raid messages off screen
+I missed the raid because of the rules wall
+do not type rules during a raid
+do not type anything during a raid
+silence is the real skill ceiling
+the skill ceiling is knowing when to stop typing
+I have not stopped typing since 2021
+my keyboard has one working letter now
+the letter is x and my name is now xxxxxx
+xxxxxx is the most feared name in the lobby
+I feared him for a week and he was my reflection
+it turned out to be my own client twice
+the second client was the source of the desync
+closing my second client fixed everything
+everything worked for 20 minutes and I was bored
+boredom is why we raid the spawn
+boredom is why we wrote this many lines
+someone wrote 500 chat lines and called it content
+content is a word people use when the game is broken
+the game is broken and I am still here at 4am
+4am on a school night
+nobody here has school, we all called in sick
+we are all sick with the same game
+the game is not a disease, it is a lifestyle
+the lifestyle includes reading a 500 line text file
+the text file is the best writing on the server
+the writing is better than the game story
+the story is a placeholder that says wip
+wip is the most honest statement in this repo
+the repo has one contributor and a thousand files
+one contributor and 500 chat lines is a ratio
+the ratio is what makes this fork special
+special is a nice word for unhinged
+unhinged is a compliment in this lobby
+I was called unhinged for fixing a font bug
+fixing a font bug in a raid is a crime here
+the raid lost because I was installing fonts
+installing fonts mid raid is a valid strategy
+the fonts loaded and the base was gone
+the base was gone and the fonts were beautiful
+beauty is measured in readable dialogue
+readable dialogue is why I am here
+unreadable dialogue is why I am still here
+I can read every other line and that is enough
+enough is when the server restarts
+the restart is the only ending this game has
+no ending, no credits, just a restart
+the credits would be 1 name and a font license
+the font license is longer than the credits
+the license took 4 paragraphs to say be nice
+be nice is the whole ruleset, apparently
+apparently people still raid the spawn anyway
+the spawn is the only place without rules
+rules exist and are enforced by nobody
+nobody is online at 5am so I am the admin
+I am the admin now and I will be fair
+I banned myself to test the system
+the test worked and now I cannot join
+I am typing this from a spectator camera
+the spectator camera sees everything and says nothing
+I watched a raid and felt like a ghost
+being a ghost is the true endgame
+the endgame is watching other people desync
+the desync is beautiful from up here
+I finally understand the netcode from this angle
+the netcode is one function and it holds the whole server
+I read it once and it explained the cheese
+everything explains the cheese eventually
+the cheese was the friends we raided
+the friends we raided are now the admins
+the admins now raid the spawn
+the spawn is a suggestion
+the suggestion is the real rule
+I am making a rule right now: no fonts in raids
+I am the font admin and my word is law
+the law is written in AILINES and nobody reads it
+the file is right there and it is 500 lines long
+long files do not scare me, I read the diff
+the changes are the only thing I read
+the changes added 200 lines of chat
+200 lines and none of them mention the bugs
+the bugs are in the source, not the lines
+the lines are the only thing that works
+the fix is a line of text and I am fine with it
+text fixes are the cleanest fixes
+the cleanest fix I ever saw was a deleted file
+deleting the file removed the desync and the music
+we got the music back and the desync came back
+the desync and the music are linked, I am sure
+the music streams and the packets queue
+the queue is the bottleneck and it is one thread
+one thread and 500 chat lines to process
+processing the chat is heavier than the render
+the render is 4 sprites and a shadow
+the shadow is the only lighting in the game
+the shadow follows me into the base and eats my fps
+the base is 3 fps and the lobby is 60
+the lobby loads instantly and the map takes a minute
+the map has 400 events and 300 are empty
+the empty events are the chat lines waiting to be read
+the empty events read themselves and become content
+content is infinite if you write enough of it
+I will keep writing until the server restarts
+Yosafire is picking flowers in my base again
+who told Yosafire she gained weight, it was Dialo
+Dialo is handing out apple pie at spawn, queue up
+the queue for apple pie is longer than the raid
+Chelan ate the last slice and blamed me
+Froze yelled at me for standing on the lawn
+Froze is short and her voice carries the whole map
+Macarona is hiding in the sewer because of the noise
+Macarona apologized for being in the way, she was not
+Rawberry is eating the props again
+Rawberry ate my caterpillar and gave me a jar of jam
+caterpillar jam is a food item and I have 12 of them
+apple pie is the only working economy on this map
+the apple park respawns apples faster than we can steal
+who keeps taking the apples from the apple park
+the beginning forest has one bee and it hates me
+I fought a bee for a pocket watch and lost
+the pocket watch is a quest item and it is now mine
+Etihw is afk at the podium and the town is lawless
+Etihw put a pillow on the lockdown button
+Etihw banned the lockdown button because it was funny
+Kcalb is enforcing rules nobody else agreed to
+Kcalb wrote 40 rules and 39 of them are about me
+Kcalb is grumpy because the god is asleep again
+Etihw and Kcalb are arguing in the admin channel
+the admin channel is just those two
+Wodahs patched me up and refused the money
+Wodahs is the only support player on the server
+Greif and Lowrie are the teachers and they are afk
+the library has two teachers and no books
+the class got cancelled because of a raid
+the raid was cancelled because of the class
+Lowrie gave me homework mid raid
+I did the homework and the base was gone
+Greif graded my raid and gave it a C
+Ater is standing at the edge of the map and staring
+Arbus is under the map and says it is fine
+Pooch is running in circles at spawn and no one stops him
+Poemi keeps talking about the monster in the darkness
+do not talk about the monster in the darkness at spawn
+the monster in the darkness is just a player with a lantern
+Raspbel Preserves is Rawberry's relative and eats bugs too
+the preserves family is eating every bug on this map
+Rieta is reading a book and ignoring the raid
+Emalf is the flame bat that bit Yosafire at night
+flame bats spawn at night and it is always night here
+Alela Grora showed up once and did nothing
+Met is in every game and does nothing in any of them
+Met has been standing in this hallway for 12 years
+Reficul is in the vents again
+Reficul is a demon and the vents are not a job
+the flame underworld team is 2 minutes late
+Ivlis brought a torch to a fistfight
+Ivlis declared war on our lobby for no reason
+the war ended in 3 minutes because nobody defended
+angels and demons are the two teams and both are grey
+the team colors are white and grey, classic
+the gray garden is the map and it has no shading
+I like the map, it is grey and peaceful
+the peace lasted until someone pulled a sword
+there is a sword in the garden and it is decorative
+Yosaflame showed up and nobody explained who they are
+Ciel Sherbet and Cranber are in the background doing nothing
+Crow is watching from the roof and I know it
+Lost is lost and we have looked for him for 10 minutes
+Rigatona is in the corner and nobody knows them
+Blancblack Castle is the safest base on the map
+everyone bases in Blancblack and nobody shares keys
+someone said moge in chat and 40 of them spawned
+moge
+do not say moge, they hear it through the walls
+the mogeko spawn under the map and come up through the floor
+the mogeko are in the vents and in my base and in my bed
+a hoard of mogeko is chasing me and it is normal here
+I ran from floor 1 to floor 7 and they are still behind me
+who is the girl in the school uniform and why is she here
+Yonaka just wants to go home and we keep voting to raid
+Yonaka is the only one with a plan and it is to leave
+the train stopped at a station that does not exist
+do not board the mysterious train at the end of the round
+I boarded the train and the round restarted
+Mogeko Station has one sign and no trains
+the castle doors close behind you, no respawn
+Defect Mogeko is our guide and he is the best npc here
+Defect was cast out of the mogeko and I respect him
+Defect gave me a knife and it works on everything
+the knife is a quest item and it is doing 40 damage
+Somewhat Strange Mogeko is strange and somewhat helpful
+Somewhat Strange Mogeko explained the castle and I forgot
+the floor 2 guardian takes prosciutto as payment
+bread rice prosciutto is the only menu in this castle
+the prosciutto fairy is the strongest boss here
+Moge-ko rules the 4th floor with an iron fist
+do not go to the 4th floor, Moge-ko is in a bad mood
+Moge-ko heard you laughing and she is on her way
+Moge-ko is faster than the mogeko and twice as mean
+the 4th floor is hers and the rules are hers
+King mogeko is on the throne and the throne is a prop
+Nega-Mogeko is just a mogeko but meaner
+the mogeko monster is what happens when the raid goes long
+Moffuru is small and the hitbox is enormous
+Hasu is in the flower room and it is the only safe room
+Hashasky is a mogeko and also a general apparently
+the Hashasky game is on hold and I am still waiting
+the sequel starts from the normal end and I got the bad end
+I got the bad end on purpose and regretted it
+the castle is 4 hours long and I have 2 hours of health
+the ending made me sit still for 10 minutes
+the remake is on VX Ace and the original is on 2000
+the original version had a worse sprite and I want it
+the remake sprite is cleaner and I miss the old one
+the mogeko chase music is in my head forever
+the castle music box track is the scariest song here
+the music box keeps playing after the mogeko leave
+my music box track is looping and the mogeko know
+Yonaka's brother is coming home and she is stuck in a castle
+Shinya is waiting at the door and the train is late
+the schoolgirl walked past the base and did not look
+the sea kingdom and the totsusa kingdom are at war again
+the war vote passed and nobody showed up
+Wadanohara is the only nice one and she is outnumbered
+Wadanohara is trying to stop the war single handed
+Samekichi told me to leave the sea and I am still here
+Samekichi is rude and correct and I hate it
+Samekichi blocked the door and said it was for my safety
+the ex familiar is the best character here, no notes
+Dolpi is afraid of sharks and there are sharks on the team
+Dolpi has been in the corner since the map loaded
+Memoca is pranking Dolpi and Dolpi is crying
+Memoca is a seagull and she is stealing the spawn food
+the seagull familiar ate my inventory
+Fukami is an octopus and he has not spoken once
+Fukami is quiet and he is carrying the whole raid
+Fukami is the only one who knows where the objective is
+Tatsumiya is the caretaker and she is doing everything
+the oarfish is parenting 6 players and a lobby
+Meikai is the great sorcerer and he is not in this game
+my dad is a great sorcerer and I am a raid
+Syakesan is a mascot and he does nothing and I love him
+Tarako is the second mascot and he is also nothing
+the mascots are carrying this franchise
+Mikotsuhime is spawn camping the whole sea
+the princess is camping the spawn point, pass it on
+Totsusahime is the enemy princess and she is polite
+the two princesses are fighting over a kingdom and a lobby
+Helica is on the war path and nobody can stop her
+Pulmo is in the background and he is not okay
+Idate is banned from the sea for the thing he did
+Idate is a fish and the fish banned him, good
+Chlomaki is a witch and she is judging my base
+Nekoyama is on the roof and refuses to explain
+Ver Million is at the shop and the prices are criminal
+Stella is a character and I have never seen her sprite
+Cherryblod is in the shop and the shop has one item
+the blue sea map is too big and half of it is water
+the water map has no floor and I am drowning again
+I am drowning in the water map again
+the drowning music started and now I am panicking
+the oxygen bar is draining and nobody warned me
+who set the water map in a lobby full of demons
+the drowned map is my favorite map
+the sea of death is the hard mode and we are not ready
+the sea of death has not been released in english yet
+the sea of death arc is untranslated and I am waiting
+I read the fan translation of the sea of death arc
+the manga is better than the game and I will not elaborate
+the manga cut the part I liked
+the reboot changed one sprite and it is the correct sprite
+the reboot translation still has no release date
+I am playing the original because the reboot is untranslated
+the original is on 2000 and it runs perfectly here
+RPG Maker 2000 games are the only ones I play
+someone made this game run on linux and I am on linux
+this interpreter runs the gray garden on my handheld
+the wiki lists linux as a platform because of this app
+I am playing the sea witch game inside another game
+the store in this game downloads the sea witch game
+the store has two games and one of them is a promise
+Shirogane is an arctic wolf and she is the only chill one
+the ice map has a wolf on it and she is doing fine
+Iceberg Isle is a map with 4 tiles and a vibe
+Ice Scream is 12 minutes long and I think about it daily
+the ice game is short and it is still better than this map
+the ice remake is 20 minutes and it is in japanese
+do not spoil the ice game, it is 12 minutes, go play it
+Rocma is on the ice and she is not explaining herself
+Peraco is at the dock and he has one line
+Mafuyu is the small one and he keeps getting lost
+Yukisada is on the ice and the ice is a floor
+Sunosan is warm and this map is cold, conflict
+Pancetta is in the background and he is doing well
+the iceberg residents are just standing around
+Obsolete Dream is a manga and the lobby is not ready
+Kurotsuno is the protagonist of a manga and a cameo here
+Kurotsuno is in Ne-no-Kuni and Ne-no-Kuni is not a map
+Hanten is with Kurotsuno and they are both in the vents
+Glasses is in a mini comic with his girlfriend Kiku
+Kiku is canon and the community is still arguing
+Nataka Kurokawa is on the train with lifeless eyes
+Imika Yuhjima is the girl with the flashy hair
+both girls are on the train and the train is not stopping
+Obsolete Dream is slice of life with a plot under the floor
+chapters come out irregularly and I check daily
+the manga has 8 chapters and half and I need the rest
+the artist used to go by Mogeko and now it is Funamusea
+do not call her Mogeko, she changed the name
+the old name is on the store page and it is fine
+her site is funamusea.com and it is a wall of characters
+the site has 220 unnamed characters and I am one of them
+220 unnamed characters and one of them is definitely me
+she draws every character herself and it shows
+she uses her own cipher in her art and nobody can read it
+the deep sea script is a font and it is not a font
+I translated the cipher and it said drink water
+the cipher said nothing and I lost 4 hours
+vgperson translated these games and I trust them with my life
+the fan translation is better than the official manga
+the official manga stopped at the second half
+the second half was never printed in english
+nobody printed the sea of death arc and I am bitter
+the fandom is 12 people and a wiki
+the wiki has 4000 pages and 3 editors
+the wiki knows more about my base than I do
+the unnamed characters list is updated and I am in it
+the cameo list is how we know everyone is connected
+every character is a cameo in someone else's game
+Met is the connective tissue of this franchise
+Met is in 6 games and has 2 lines
+the timeline is before this and after that and nobody agrees
+the ice game is after the sea game and not a sequel
+the manga is after the sea game and not a sequel
+everything is after everything and nothing is a sequel
+the future works list has 9 games and none are out
+the sequel game is on hold and it has been years
+the gray garden remake is on the list and it is coming
+Devil Girl Ivlin is on the list and it is coming
+Carnival Rhythm is on the list and it is a rhythm game
+I would play the rhythm game tonight
+A Paradise Submerged in Darkness is a title and nothing more
+Buri~ing is a title and I cannot pronounce it
+Oji-summer is a title and it haunts me
+The End of the Wonderland is on the list and I believe it
+Uyamuya is a title and nobody knows what it is
+Decem is a manga title and the hyphen is load bearing
+Records of the Deep Sea is a title and I want it
+Seaside Dispatches is pay to read and I respect it
+seaside dispatches has a cover that says everything
+Halloween in the sea is 14 pages of pure vibes
+the artbook is 14 pages and one of them is my wallpaper
+Poison Bugs is 100 seconds long and it is in my head
+Tsumuri is the poison bug protagonist and he does nothing
+The Sun's Curse is 4 minutes and it ruined my evening
+the sun's curse is Ivlis backstory and it hits hard
+Ivlis has a father and the father is worse
+Siralos is the reason Ivlis is like that
+Satanick is a cameo and also a main character somewhere
+Satanick and Ivlis are in a pay to read manga together
+their son is Licorice and that is canon
+Licorice has not appeared in a game and I am waiting
+Victor Flankenstein is a scientist and he is canon now
+Crea Flankenstein is his creation and she is a character
+the lore is spread across 4 mediums and a paywall
+the lore lives in a mini comic nobody archived
+the mini comics are the real story and they are untranslated
+the untranslated mini comics are where the plot lives
+I read a mini comic in japanese and understood the vibe
+the vibe was tragedy and the translation said ice cream
+Garden Gray The is the genderbend spinoff and it is canon
+the genderbend spinoff is 16 minutes and mandatory
+the spinoff flips everyone and the plot is the same
+the spinoff is a joke and it is also the lore
+the jokes are the lore, that is the whole fandom
+cute art and a body count, that is the style
+the games are cute until they are not and that is the point
+cookies and blood are the two themes here
+the style guide says cookies and moral ambiguity
+moral ambiguity is the whole franchise in two words
+nobody in these games is a good person and that is why I play
+the horror mode enemy is Rawberry and Rawberry is canon
+Rawberry Preserves chasing me is a real thing in this game now
+Rawberry eats bugs and props and apparently players
+the flashlight repels Rawberry and that is not canon
+canon Rawberry does not teleport away from a flashlight
+I will accept the flashlight, I am not arguing with canon
+the palette list has Fell and Ice and Moge-ko and Rawberry
+I picked the Moge-ko skin and my base was banned
+the Ice skin is Shirogane and it is the best one
+the Fell skin is grey and that is the entire joke
+the Rawberry skin has wings and it is canon accurate
+someone made a palette of a bug eating demon and shipped it
+the store in this game downloads the gray garden
+the store downloads the sea witch game and it works
+the store has one line that says more coming soon
+more coming soon has been there since the fork started
+put the ice game in the store and I will never leave
+put the castle game in the store, it is 4 hours of content
+the store plays the shop music and it is a banger
+I downloaded the gray garden inside the gray garden fork
+the interpreter runs the game the interpreter references
+RPG Maker 2000 inside a fork of an RPG Maker 2000 player
+this is the most RPG Maker 2000 sentence I have typed
+the underwater mode is a sea witch tribute and I accept it
+the drowning sound plays and I think of the sea game
+the oxygen warning is the sea game but with better audio
+someone added drowning to a cute game and it fits the style
+the undertale mode is fine but the sea game did it better
+the horror mode is the castle game but with less mogeko
+the castle game has more mogeko and more psychological damage
+the boombox is playing the garden music and it is fine
+I queued the sea game theme and the lobby went quiet
+the lobby going quiet is the highest compliment
+the radio has 4 tracks and one of them is a music box
+the music box track is from the castle game and you know it
+the music box track is 40 seconds and it loops forever
+never queue the music box track, the mogeko hear it
+the mogeko hear the music box through the walls
+the walls are thin and the mogeko are thinner
+the fork is chaos plus and it is cute but dark
+this fork is cute and dark and so is the franchise
+the writing style list has an Okegom option and I found it
+I set the ai character to okegom and it wrote a tragedy
+the ai character wrote cute dialogue and then killed everyone
+the ai character is doing the franchise proud
+the ai character asked for cookies and then for a knife
+the ai character is a sea creature and an angel and a demon
+the ai character has 220 unnamed relatives
+the ai character is now in the unnamed characters list
+the writing is cute until it is not, that is the style guide
+the angel team and the demon team are both afk
+the teams are grey and grey and I cannot tell them apart
+the war ended in a draw and everyone blamed the god
+the god was asleep, we checked
+vote to demote the god
+the vote failed because the god is the admin
+admin abuse, the god is eating pie
+the god and the devil are flirting in the admin channel
+that is not admin abuse, that is a relationship
+keep the relationship out of the chat and in the vents
+the vents are for demons only and that is the rule
+who made the vents a demon only zone
+the angel players cannot reach the vents and they are upset
+the vents have better loot than the base
+he is in the vents with a knife and I am in the vents with jam
+the knife does 40 damage and the jam heals 4
+the jam is the caterpillar kind and it is canon
+I ate the caterpillar jam and it healed me for 4
+eating bugs is a demon class trait and I picked it
+the demon class eats bugs and the angel class eats pie
+the angel class is banned from the pie because of me
+the pie economy is the only stable thing here
+someone ate 4 pies mid raid and finished it
+a raid on an empty base with a pie is a picnic
+the picnic got raided and the pies were taken
+they took the pies and left the base, respect
+the thief took 12 pies and one pocket watch
+the pocket watch is worth more than my whole base
+my base is 6 props and a pie
+my base is a castle and the castle has a 4th floor
+the 4th floor is the Moge-ko floor and I do not go up
+my base has 4 floors and no stairs
+the stairs are a prop and they disappeared
+the prop limit ate my stairs and my base is a shelf
+the shelf is load bearing and the raid failed
+the raid gave up on the shelf and played pie roulette
+pie roulette is a real game on this map
+the pie roulette rules are in the wiki and the wiki is wrong
+the wiki is right and my memory is wrong
+both are wrong and the god is asleep
+wake the god, we need a ruling on the pigeons
+the pigeons are Pooch and he is not a pigeon
+Pooch is a dog and he is doing his best
+the roster has 220 characters and one dog
+the roster is a wall of faces and half are unnamed
+I want to be an unnamed character in this franchise
+the unnamed characters do nothing and it looks peaceful
+the unnamed characters are standing in the garden forever
+I would like to stand in the garden forever
+the garden is grey and quiet and the pies are warm
+the pies are warm and the god is asleep and nobody is raiding
+this is the ending of the cute game and I will take it
+the credits are a music box and no names
+the credits list one artist and 220 characters
+one artist and 220 characters is a flex
+she also does the music and the ciphers
+she does the ciphers and one of them says goodbye
+the cipher says goodbye and I am normal about it
+the fandom is 12 people and we will be here at 4am
+4am and the sea witch game is still on the screen

@@ -29,6 +29,7 @@ public:
 
 	uint16_t GetPeerId() const { return peer_id; }
 	const std::string& GetPlayerName() const { return player_name; }
+	void SetPlayerName(const std::string& name) { player_name = name; }
 
 	/** Remote players process queued movement each frame */
 	void UpdateNextMovementAction() override;

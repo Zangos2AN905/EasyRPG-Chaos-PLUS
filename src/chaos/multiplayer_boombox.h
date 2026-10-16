@@ -20,7 +20,6 @@ public:
 	void Start();
 	void Stop();
 	void Update();
-	bool IsOverridingGameMusic() const { return active && !restoring_game_music && HasActiveSource(); }
 	bool SubmitTrack(size_t index);
 	bool SubmitCustomMusic(const std::string& filename);
 	void StopLocal();
@@ -41,8 +40,6 @@ private:
 		const std::string& extension, std::vector<uint8_t> data);
 	bool WriteCustomFile(const std::string& path, const std::vector<uint8_t>& data) const;
 	int GetSlot(uint16_t peer_id);
-	bool HasActiveSource() const;
-	void RestoreGameMusic();
 
 	bool active = false;
 	std::map<uint16_t, State> states;
@@ -53,15 +50,6 @@ private:
 	std::map<uint16_t, PendingUpload> pending_uploads;
 	std::map<std::string, IncomingUpload> incoming_uploads;
 	std::set<std::string> custom_paths;
-	bool restoring_game_music = false;
-	bool saved_bgm_valid = false;
-	struct SavedMusic {
-		std::string name;
-		int32_t volume = 100;
-		int32_t tempo = 100;
-		int32_t fadein = 0;
-		int32_t balance = 50;
-	} saved_bgm;
 };
 
 } // namespace Chaos
